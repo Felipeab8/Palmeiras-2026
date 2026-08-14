@@ -3,6 +3,7 @@ const STORAGE_KEY = 'palmeiras_bi_2026_rawrows';
 function saveToStorage(rows) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    console.log('[DEBUG] Salvo no localStorage:', rows.length, 'partidas');
   } catch (e) {
     console.warn('localStorage cheio:', e);
   }
@@ -11,7 +12,14 @@ function saveToStorage(rows) {
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const rows = JSON.parse(raw);
+      // Converte DataObj string de volta para Date
+      return rows.map(r => ({
+        ...r,
+        DataObj: r.DataObj ? new Date(r.DataObj) : null
+      })).filter(r => r.DataObj);
+    }
   } catch (e) {
     console.warn('Erro ao ler localStorage:', e);
   }
@@ -735,8 +743,13 @@ let RAW_ROWS = storedRows || DATA.todasPartidas.map((p, i) => {
 
 // Se carregou do localStorage, reconstrói DATA e renderiza
 if (storedRows) {
+  storedRows.sort((a,b)=> a.DataObj - b.DataObj);
+  RAW_ROWS = storedRows;
   DATA = buildDataFromRows(storedRows);
   renderDashboard();
+  console.log('[DEBUG] Carregado do localStorage:', storedRows.length, 'partidas');
+  document.getElementById('upload-status').textContent = `���� ${storedRows.length} partidas restauradas do armazenamento local`;
+  document.getElementById('upload-status').className = 'upload-status success';
 }
 
 const FILTER_IDS = ['f-competicao', 'f-mandante', 'f-resultado', 'f-adversario'];
