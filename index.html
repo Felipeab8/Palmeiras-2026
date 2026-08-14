@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palmeiras · BI Sports Analytics 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Archivo+Expanded:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brandmark">
+    <div class="crest"><img src="SE_Palmeiras_2025_crest.png" alt="Palmeiras"></div>
+    <div class="brand-text">
+      <span class="name">SOCIEDADE ESPORTIVA PALMEIRAS</span>
+      <span class="sub">Sports Analytics · BI Dashboard</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="pill"><span class="dot"></span> Dados validados · 44 partidas</div>
+    <div class="pill">Temporada 2026</div>
+    <label class="upload-btn" for="excel-upload">
+      ⭱ Carregar planilha (.xlsx)
+      <input type="file" id="excel-upload" accept=".xlsx,.xls" hidden>
+    </label>
+  </div>
+</div>
+<div id="upload-status" class="upload-status"></div>
+
+<div class="filterbar">
+  <span class="flabel">Filtros</span>
+  <select id="f-competicao" class="fselect">
+    <option value="">Competição: Todas</option>
+  </select>
+  <select id="f-mandante" class="fselect">
+    <option value="">Mandante / Visitante: Todos</option>
+    <option value="casa">Casa</option>
+    <option value="fora">Fora</option>
+  </select>
+  <select id="f-resultado" class="fselect">
+    <option value="">Resultado: Todos</option>
+    <option value="Vitória">Vitória</option>
+    <option value="Empate">Empate</option>
+    <option value="Derrota">Derrota</option>
+  </select>
+  <select id="f-adversario" class="fselect">
+    <option value="">Adversário: Todos</option>
+  </select>
+  <button id="f-clear" class="fclear-btn">Limpar filtros</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ===================== HERO / HEADER ===================== -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="hero-title">
+        <div class="hero-crest"><img src="SE_Palmeiras_2025_crest.png" alt="Palmeiras"></div>
+        <div>
+          <h1>PALMEIRAS</h1>
+          <div class="tagline">Painel de performance · Temporada 2026 · Todas as competições</div>
+        </div>
+      </div>
+      <div class="season-select">TEMPORADA 2026 ▾</div>
+    </div>
+
+    <div class="kpi-strip" id="kpi-strip"></div>
+  </div>
+
+  <!-- ===================== POR COMPETIÇÃO ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Desempenho por torneio</div>
+        <div class="section-desc">Aproveitamento, saldo e médias de gols em cada competição disputada na temporada.</div>
+      </div>
+    </div>
+    <div class="grid grid-4" id="comp-grid"></div>
+  </div>
+
+  <!-- ===================== CASA X FORA ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Casa × Fora</div>
+        <div class="section-desc">Comparação de desempenho como mandante e visitante.</div>
+      </div>
+    </div>
+    <div class="vs-panel" id="vs-panel"></div>
+  </div>
+
+  <!-- ===================== RANKING ADVERSÁRIOS ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Ranking de adversários</div>
+        <div class="section-desc">Confrontos mais frequentes e aproveitamento contra cada rival.</div>
+      </div>
+    </div>
+    <div class="rank-tabs" id="rank-tabs"></div>
+    <div class="card subtle-scroll">
+      <table class="rank-table" id="rank-table"></table>
+    </div>
+  </div>
+
+  <!-- ===================== EVOLUÇÃO ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Evolução da temporada</div>
+        <div class="section-desc">Pontos acumulados, saldo de gols e aproveitamento móvel (últimos 5 jogos) ao longo do campeonato.</div>
+      </div>
+    </div>
+    <div class="card chart-card" style="margin-bottom:16px;">
+      <div id="evo-chart"></div>
+      <div class="chart-legend">
+        <div class="li"><span class="sw" style="background:var(--green-400)"></span> Pontos acumulados</div>
+        <div class="li"><span class="sw" style="background:var(--gold-soft)"></span> Saldo de gols acumulado</div>
+        <div class="li"><span class="sw" style="background:#5f8bd9"></span> Aproveitamento móvel (5 jogos) %</div>
+      </div>
+    </div>
+
+    <div class="momentum-wrap">
+      <div class="card">
+        <div class="section-eyebrow" style="margin-bottom:10px;">Momento atual</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="section-desc" style="margin:0 0 6px;">Últimos 5 jogos</div>
+            <div class="form-row" id="form-row"></div>
+          </div>
+          <div style="text-align:right;">
+            <div class="vs-big green" id="momento-aprov">--%</div>
+            <div class="kpi-sub">Aproveitamento no período</div>
+          </div>
+        </div>
+        <div id="momento-badges" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;"></div>
+      </div>
+      <div class="card">
+        <div class="section-eyebrow" style="margin-bottom:10px;">Sequências da temporada</div>
+        <div class="grid grid-2" id="seq-grid" style="gap:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== OFENSIVA / DEFENSIVA ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        
+        <div class="section-title">Performance ofensiva &amp; defensiva</div>
+        <div class="section-desc">Distribuição de gols marcados por partida, clean sheets e maiores marcas da temporada.</div>
+      </div>
+      <div class="section-note">A base não contém minuto do gol — a distribuição por período de jogo (0–15, 16–30 ...) não pôde ser calculada e foi omitida para não inventar dados.</div>
+    </div>
+    <div class="grid grid-2" style="align-items:stretch;">
+      <div class="card" style="min-height:420px;display:flex;flex-direction:column;">
+        <div class="comp-name" style="margin-bottom:16px;">Distribuição de gols marcados por partida</div>
+        <div id="dist-gols" style="flex:1;"></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="highlight-card"><div class="hl-label">Clean sheets</div><div class="hl-val" id="hl-cs"></div><div class="hl-sub">jogos sem sofrer gols</div></div>
+        <div class="highlight-card"><div class="hl-label">Jogos sem marcar</div><div class="hl-val" id="hl-nsm"></div><div class="hl-sub">de 44 partidas</div></div>
+        <div class="highlight-card"><div class="hl-label">Maior GP em 1 jogo</div><div class="hl-val" id="hl-maxgp"></div><div class="hl-sub">gols na mesma partida</div></div>
+        <div class="highlight-card"><div class="hl-label">Maior GC em 1 jogo</div><div class="hl-val" id="hl-maxgc"></div><div class="hl-sub">gols sofridos na mesma partida</div></div>
+        <div class="highlight-card"><div class="hl-label">Maior goleada aplicada</div><div class="hl-val" id="hl-golap"></div><div class="hl-sub" id="hl-golap-sub"></div></div>
+        <div class="highlight-card"><div class="hl-label">Maior goleada sofrida</div><div class="hl-val" id="hl-golso"></div><div class="hl-sub" id="hl-golso-sub"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESULTADOS ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Matriz de resultados</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="donut-wrap">
+        <div id="donut-chart"></div>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ÚLTIMOS JOGOS ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Últimos 10 jogos</div>
+        <div class="section-desc">Tendência calculada por comparação estatística: aproveitamento dos últimos 5 jogos vs. aproveitamento geral da temporada.</div>
+      </div>
+      <div id="trend-badge"></div>
+    </div>
+    <div class="card subtle-scroll">
+      <table class="games-table" id="games-table"></table>
+    </div>
+  </div>
+
+  <!-- ===================== CONFRONTOS IMPORTANTES ===================== -->
+  <div class="section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Confrontos importantes</div>
+      </div>
+    </div>
+    <div class="grid grid-4" id="confrontos-grid"></div>
+  </div>
+
+  <footer>
+    <p>PALMEIRAS · BI SPORTS ANALYTICS — Fonte: Palmeiras_BI_2026.xlsx (44 partidas, temporada 2026) · Gerado a partir de dados fornecidos, sem valores inventados</p>
+  </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
