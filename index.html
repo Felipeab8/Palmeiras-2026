@@ -1,135 +1,159 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Palmeiras · BI Sports Analytics 2026</title>
+<meta name="description" content="Painel de performance do Palmeiras na temporada 2026 — aproveitamento, evolução, adversários, artilharia e assistências.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Archivo+Expanded:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="xlsx.full.min.js"></script>
 </head>
 <body>
 
-<div class="topbar">
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="topbar">
   <div class="brandmark">
-    <div class="crest"><img src="SE_Palmeiras_2025_crest.png" alt="Palmeiras"></div>
+    <div class="crest"><img src="SE_Palmeiras_2025_crest.png" alt="Escudo do Palmeiras"></div>
     <div class="brand-text">
       <span class="name">SOCIEDADE ESPORTIVA PALMEIRAS</span>
       <span class="sub">Sports Analytics · BI Dashboard</span>
     </div>
   </div>
   <div class="topbar-right">
-    <div class="pill"><span class="dot"></span> Dados validados · 44 partidas</div>
-    <div class="pill">Temporada 2026</div>
+    <div class="pill"><span class="dot"></span> <span id="pill-partidas">—</span></div>
+    <div class="pill hide-sm">Temporada 2026</div>
+    <button id="btn-export" class="ghost-btn" type="button" title="Baixar as partidas do recorte atual em CSV">⤓ CSV</button>
     <label class="upload-btn" for="excel-upload">
-      ⭱ Carregar planilha (.xlsx)
+      ⭱ <span class="hide-sm">Carregar planilha</span> (.xlsx)
       <input type="file" id="excel-upload" accept=".xlsx,.xls" hidden>
     </label>
   </div>
-</div>
-<div id="upload-status" class="upload-status"></div>
+</header>
+<div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+
+<nav class="secnav" aria-label="Seções do painel">
+  <a href="#sec-torneios">Torneios</a>
+  <a href="#sec-casafora">Casa × Fora</a>
+  <a href="#sec-adversarios">Adversários</a>
+  <a href="#sec-evolucao">Evolução</a>
+  <a href="#sec-elenco">Elenco</a>
+  <a href="#sec-gols">Ofensiva / Defensiva</a>
+  <a href="#sec-jogos">Jogos</a>
+</nav>
 
 <div class="filterbar">
   <span class="flabel">Filtros</span>
-  <select id="f-competicao" class="fselect">
+  <select id="f-competicao" class="fselect" aria-label="Filtrar por competição">
     <option value="">Competição: Todas</option>
   </select>
-  <select id="f-mandante" class="fselect">
-    <option value="">Mandante / Visitante: Todos</option>
+  <select id="f-mandante" class="fselect" aria-label="Filtrar por mando de campo">
+    <option value="">Mando: Todos</option>
     <option value="casa">Casa</option>
     <option value="fora">Fora</option>
   </select>
-  <select id="f-resultado" class="fselect">
+  <select id="f-resultado" class="fselect" aria-label="Filtrar por resultado">
     <option value="">Resultado: Todos</option>
     <option value="Vitória">Vitória</option>
     <option value="Empate">Empate</option>
     <option value="Derrota">Derrota</option>
   </select>
-  <select id="f-adversario" class="fselect">
+  <select id="f-adversario" class="fselect" aria-label="Filtrar por adversário">
     <option value="">Adversário: Todos</option>
   </select>
-  <button id="f-clear" class="fclear-btn">Limpar filtros</button>
-  <button id="f-clear-storage" class="fclear-btn" style="border-color:var(--red);color:#f0897a;">Limpar dados salvos</button>
+  <button id="f-clear" class="fclear-btn" type="button">Limpar filtros</button>
+  <button id="f-clear-storage" class="fclear-btn danger" type="button">Restaurar base original</button>
+  <div class="filter-summary" id="filter-summary"></div>
 </div>
 
-<div class="wrap">
+<main class="wrap" id="conteudo">
 
   <!-- ===================== HERO / HEADER ===================== -->
-  <div class="hero">
+  <section class="hero">
     <div class="hero-top">
       <div class="hero-title">
-        <div class="hero-crest"><img src="SE_Palmeiras_2025_crest.png" alt="Palmeiras"></div>
+        <div class="hero-crest"><img src="SE_Palmeiras_2025_crest.png" alt=""></div>
         <div>
           <h1>PALMEIRAS</h1>
-          <div class="tagline">Painel de performance · Temporada 2026 · Todas as competições</div>
+          <div class="tagline" id="hero-tagline">Painel de performance · Temporada 2026</div>
         </div>
       </div>
-      <div class="season-select">TEMPORADA 2026 ▾</div>
+      <div class="hero-side">
+        <div class="season-select">TEMPORADA 2026</div>
+        <div class="hero-form" id="hero-form" title="Últimos 5 jogos do recorte"></div>
+      </div>
     </div>
 
     <div class="kpi-strip" id="kpi-strip"></div>
-  </div>
+  </section>
 
   <!-- ===================== POR COMPETIÇÃO ===================== -->
-  <div class="section">
+  <section class="section" id="sec-torneios">
     <div class="section-head">
       <div>
-        <div class="section-title">Desempenho por torneio</div>
-        <div class="section-desc">Aproveitamento, saldo e médias de gols em cada competição disputada na temporada.</div>
+        <div class="section-eyebrow">01 · Competições</div>
+        <h2 class="section-title">Desempenho por torneio</h2>
+        <p class="section-desc">Aproveitamento, saldo e médias de gols em cada competição disputada no recorte atual.</p>
       </div>
     </div>
     <div class="grid grid-4" id="comp-grid"></div>
-  </div>
+  </section>
 
   <!-- ===================== CASA X FORA ===================== -->
-  <div class="section">
+  <section class="section" id="sec-casafora">
     <div class="section-head">
       <div>
-        <div class="section-title">Casa × Fora</div>
-        <div class="section-desc">Comparação de desempenho como mandante e visitante.</div>
+        <div class="section-eyebrow">02 · Mando de campo</div>
+        <h2 class="section-title">Casa × Fora</h2>
+        <p class="section-desc">Comparação de desempenho como mandante e visitante.</p>
       </div>
     </div>
     <div class="vs-panel" id="vs-panel"></div>
-  </div>
+  </section>
 
   <!-- ===================== RANKING ADVERSÁRIOS ===================== -->
-  <div class="section">
+  <section class="section" id="sec-adversarios">
     <div class="section-head">
       <div>
-        <div class="section-title">Ranking de adversários</div>
-        <div class="section-desc">Confrontos mais frequentes e aproveitamento contra cada rival.</div>
+        <div class="section-eyebrow">03 · Rivais</div>
+        <h2 class="section-title">Ranking de adversários</h2>
+        <p class="section-desc">Confrontos mais frequentes e aproveitamento contra cada rival. Clique nos títulos da tabela para reordenar.</p>
       </div>
     </div>
-    <div class="rank-tabs" id="rank-tabs"></div>
+    <div class="rank-tabs" id="rank-tabs" role="tablist" aria-label="Recortes de adversários"></div>
     <div class="card subtle-scroll">
       <table class="rank-table" id="rank-table"></table>
     </div>
-  </div>
+    <div class="grid grid-4" id="confrontos-grid" style="margin-top:16px;"></div>
+  </section>
 
   <!-- ===================== EVOLUÇÃO ===================== -->
-  <div class="section">
+  <section class="section" id="sec-evolucao">
     <div class="section-head">
       <div>
-        <div class="section-title">Evolução da temporada</div>
-        <div class="section-desc">Pontos acumulados, saldo de gols e aproveitamento móvel (últimos 5 jogos) ao longo do campeonato.</div>
+        <div class="section-eyebrow">04 · Linha do tempo</div>
+        <h2 class="section-title">Evolução da temporada</h2>
+        <p class="section-desc">Pontos acumulados, saldo de gols e aproveitamento móvel de 5 jogos. Passe o mouse sobre o gráfico para ver cada partida.</p>
       </div>
     </div>
     <div class="card chart-card" style="margin-bottom:16px;">
-      <div id="evo-chart"></div>
+      <div class="chart-host" id="evo-chart"></div>
       <div class="chart-legend">
         <div class="li"><span class="sw" style="background:var(--green-400)"></span> Pontos acumulados</div>
         <div class="li"><span class="sw" style="background:var(--gold-soft)"></span> Saldo de gols acumulado</div>
-        <div class="li"><span class="sw" style="background:#5f8bd9"></span> Aproveitamento móvel (5 jogos) %</div>
+        <div class="li"><span class="sw dashed"></span> Aproveitamento móvel (5 jogos) %</div>
       </div>
     </div>
 
     <div class="momentum-wrap">
       <div class="card">
         <div class="section-eyebrow" style="margin-bottom:10px;">Momento atual</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div class="momento-top">
           <div>
-            <div class="section-desc" style="margin:0 0 6px;">Últimos 5 jogos</div>
+            <p class="section-desc" style="margin:0 0 6px;">Últimos 5 jogos</p>
             <div class="form-row" id="form-row"></div>
           </div>
           <div style="text-align:right;">
@@ -137,84 +161,87 @@
             <div class="kpi-sub">Aproveitamento no período</div>
           </div>
         </div>
-        <div id="momento-badges" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;"></div>
+        <div id="momento-badges" class="badge-row"></div>
       </div>
       <div class="card">
-        <div class="section-eyebrow" style="margin-bottom:10px;">Sequências da temporada</div>
+        <div class="section-eyebrow" style="margin-bottom:10px;">Sequências do recorte</div>
         <div class="grid grid-2" id="seq-grid" style="gap:10px;"></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ===================== OFENSIVA / DEFENSIVA ===================== -->
-  <div class="section">
+  <!-- ===================== ELENCO ===================== -->
+  <section class="section" id="sec-elenco">
     <div class="section-head">
       <div>
-        
-        <div class="section-title">Performance ofensiva &amp; defensiva</div>
-        <div class="section-desc">Distribuição de gols marcados por partida, clean sheets e maiores marcas da temporada.</div>
+        <div class="section-eyebrow">05 · Elenco</div>
+        <h2 class="section-title">Artilharia &amp; assistências</h2>
+        <p class="section-desc">Participações em gols na temporada.</p>
       </div>
-      <div class="section-note">A base não contém minuto do gol — a distribuição por período de jogo (0–15, 16–30 ...) não pôde ser calculada e foi omitida para não inventar dados.</div>
+      <div class="section-note">Números de jogadores vêm das abas <b>Artilharia</b> / <b>Assistencias</b> da planilha e são da temporada inteira — não respondem aos filtros de partida.</div>
     </div>
-    <div class="grid grid-2" style="align-items:stretch;">
-      <div class="card" style="min-height:420px;display:flex;flex-direction:column;">
-        <div class="comp-name" style="margin-bottom:16px;">Distribuição de gols marcados por partida</div>
-        <div id="dist-gols" style="flex:1;"></div>
+    <div class="grid grid-2" id="elenco-grid"></div>
+  </section>
+
+  <!-- ===================== OFENSIVA / DEFENSIVA ===================== -->
+  <section class="section" id="sec-gols">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">06 · Gols</div>
+        <h2 class="section-title">Performance ofensiva &amp; defensiva</h2>
+        <p class="section-desc">Distribuição de gols marcados por partida, clean sheets e maiores marcas do recorte.</p>
       </div>
-      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="highlight-card"><div class="hl-label">Clean sheets</div><div class="hl-val" id="hl-cs"></div><div class="hl-sub">jogos sem sofrer gols</div></div>
-        <div class="highlight-card"><div class="hl-label">Jogos sem marcar</div><div class="hl-val" id="hl-nsm"></div><div class="hl-sub">de 44 partidas</div></div>
+      <div class="section-note">A base não contém minuto do gol — a distribuição por período de jogo (0–15, 16–30 …) não pôde ser calculada e foi omitida para não inventar dados.</div>
+    </div>
+    <div class="gols-wrap">
+      <div class="card dist-card">
+        <div class="comp-name" style="margin-bottom:16px;">Distribuição de gols marcados por partida</div>
+        <div id="dist-gols"></div>
+      </div>
+      <div class="grid grid-2 hl-grid">
+        <div class="highlight-card"><div class="hl-label">Clean sheets</div><div class="hl-val" id="hl-cs"></div><div class="hl-sub" id="hl-cs-sub"></div></div>
+        <div class="highlight-card"><div class="hl-label">Jogos sem marcar</div><div class="hl-val" id="hl-nsm"></div><div class="hl-sub" id="hl-nsm-sub"></div></div>
         <div class="highlight-card"><div class="hl-label">Maior GP em 1 jogo</div><div class="hl-val" id="hl-maxgp"></div><div class="hl-sub">gols na mesma partida</div></div>
         <div class="highlight-card"><div class="hl-label">Maior GC em 1 jogo</div><div class="hl-val" id="hl-maxgc"></div><div class="hl-sub">gols sofridos na mesma partida</div></div>
         <div class="highlight-card"><div class="hl-label">Maior goleada aplicada</div><div class="hl-val" id="hl-golap"></div><div class="hl-sub" id="hl-golap-sub"></div></div>
         <div class="highlight-card"><div class="hl-label">Maior goleada sofrida</div><div class="hl-val" id="hl-golso"></div><div class="hl-sub" id="hl-golso-sub"></div></div>
       </div>
     </div>
-  </div>
 
-  <!-- ===================== RESULTADOS ===================== -->
-  <div class="section">
-    <div class="section-head">
-      <div>
-        <div class="section-title">Matriz de resultados</div>
-      </div>
-    </div>
-    <div class="card">
+    <div class="card" style="margin-top:16px;">
       <div class="donut-wrap">
         <div id="donut-chart"></div>
         <div class="donut-legend" id="donut-legend"></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ===================== ÚLTIMOS JOGOS ===================== -->
-  <div class="section">
+  <!-- ===================== JOGOS ===================== -->
+  <section class="section" id="sec-jogos">
     <div class="section-head">
       <div>
-        <div class="section-title">Últimos 10 jogos</div>
-        <div class="section-desc">Tendência calculada por comparação estatística: aproveitamento dos últimos 5 jogos vs. aproveitamento geral da temporada.</div>
+        <div class="section-eyebrow">07 · Partidas</div>
+        <h2 class="section-title" id="games-title">Partidas do recorte</h2>
+        <p class="section-desc">Tendência calculada por comparação estatística: aproveitamento dos últimos 5 jogos vs. aproveitamento geral do recorte.</p>
       </div>
       <div id="trend-badge"></div>
+    </div>
+    <div class="games-toolbar">
+      <div class="rank-tabs" id="games-scope" role="tablist" aria-label="Quantidade de jogos"></div>
+      <input type="search" id="games-search" class="fsearch" placeholder="Buscar adversário ou competição…" aria-label="Buscar partidas">
     </div>
     <div class="card subtle-scroll">
       <table class="games-table" id="games-table"></table>
     </div>
-  </div>
-
-  <!-- ===================== CONFRONTOS IMPORTANTES ===================== -->
-  <div class="section">
-    <div class="section-head">
-      <div>
-        <div class="section-title">Confrontos importantes</div>
-      </div>
-    </div>
-    <div class="grid grid-4" id="confrontos-grid"></div>
-  </div>
+  </section>
 
   <footer>
-    <p>PALMEIRAS · BI SPORTS ANALYTICS — Fonte: Palmeiras_BI_2026.xlsx (44 partidas, temporada 2026) · Gerado a partir de dados fornecidos, sem valores inventados</p>
+    <p id="footer-note">PALMEIRAS · BI SPORTS ANALYTICS</p>
+    <p class="muted">Todos os números são calculados a partir da base carregada — nada é estimado ou inventado.</p>
   </footer>
-</div>
+</main>
+
+<div class="chart-tip" id="chart-tip" hidden></div>
 
 <script src="script.js"></script>
 </body>
