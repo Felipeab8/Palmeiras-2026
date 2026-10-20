@@ -4,60 +4,54 @@ Dashboard de performance do Palmeiras na temporada 2026. HTML/CSS/JS puro — ab
 
 ## Como usar
 
-1. Abra `index.html` no browser
-2. Clique em **"Carregar planilha (.xlsx)"** e selecione `Palmeiras_BI_2026.xlsx`
-3. Use os filtros no topo (Competição, Mando, Resultado, Adversário)
+1. Abra `index.html` no browser — os dados da temporada vêm embutidos no `script.js` (até Athletico-PR 0 x 2 Palmeiras, 17/10/2026)
+2. Use os filtros no topo (Competição, Mando, Resultado, Adversário)
 
-A última planilha carregada fica salva no navegador (localStorage) e volta sozinha na próxima abertura. **Restaurar base original** limpa esse cache e volta aos dados embutidos no `script.js`.
+## Atualizando a base embutida
+
+No topo do `script.js`, acrescente uma linha por jogo em `BASE_PARTIDAS`:
+
+```js
+['17/10/2026', 'Athletico-PR', 'Brasileirão', 'Ligga Arena', 2, 0, 'Maurício e Piquerez'],
+//  data        adversário      competição     estádio     PAL ADV  autores dos gols
+```
+
+- **Autores** vão como a fonte escreve: `'V.Roque (2), Andreas e Sosa'`; `(c)` marca gol contra a favor; jogo sem gol fica `''`.
+- Abreviações viram nome completo pela tabela `APELIDOS`, logo abaixo. Um apelido novo que não estiver lá aparece como outro jogador na artilharia — acrescente-o.
+- Se os autores de um jogo não somarem o placar, o console do navegador (F12) avisa qual jogo.
+- Resultado, placar e mando são derivados. Jogos em **Allianz Parque**, **Arena Barueri** ou **Nubank Parque** contam como mando de campo. Um 8º campo opcional substitui o placar exibido, para pênaltis: `'2(3)x(4)3'`.
+- Jogos de **mata-mata** não valem pontos e aparecem com "—" na coluna Pts. A regra fica em `JOGOS_ANTES_DO_MATA_MATA`: quantos jogos de fase de pontos cada competição tem antes do mata-mata (Copa do Brasil `0`, Libertadores `6`). Jogos novos dessas competições já entram certos, sem marcar nada.
+- Assistências (que não têm registro por jogo) ficam em `BASE_ASSISTENCIAS`.
 
 ## O que mostra
 
-- **KPIs**: jogos, V/E/D, gols, saldo, pontos, aproveitamento
-- **Por torneio**: cards com aproveitamento, médias e barra de progresso
+- **KPIs**: jogos, V/E/D, gols, saldo, pontos, aproveitamento — e até quando vão os dados
+- **Por torneio**: aproveitamento, médias, barra de progresso e artilheiro de cada competição
 - **Casa × Fora**: comparativo lado a lado com a diferença em pontos percentuais
 - **Ranking de adversários**: 4 recortes (mais enfrentados, melhor aproveitamento, maior dificuldade, mais vencidos) com colunas ordenáveis
-- **Evolução**: gráfico interativo de pontos acumulados, saldo e aproveitamento móvel de 5 jogos — passe o mouse para ver partida a partida
-- **Momento**: últimos 5 jogos, tendência e sequências do recorte
-- **Elenco**: artilharia e assistências
+- **Evolução**: dois painéis com o mesmo eixo — pontos e saldo acumulados; aproveitamento móvel de 5 jogos contra a média do recorte. Mouse, toque ou teclado (foque o gráfico e use ← →) mostram cada partida com placar e autores dos gols
+- **Momento**: últimos 5 jogos (com adversário e placar), tendência, sequência em curso e as maiores sequências do recorte, com período
+- **Elenco**: artilharia (responde aos filtros) e assistências (temporada inteira), top 10 com "ver todos"
 - **Ofensiva/Defensiva**: distribuição de gols por partida + 6 cards de destaque
-- **Donut**: vitórias/empates/derrotas
-- **Partidas**: tabela com busca, ordenação e recorte de 5 / 10 / todas
+- **Resultados**: donut V/E/D + barras por torneio e por mando
+- **Partidas**: tabela com estádio, autores dos gols e mata-mata sinalizado; busca sem acento (time, jogador, estádio), ordenação e recorte de 5 / 10 / todas
 - **Exportação**: botão **CSV** baixa as partidas do recorte atual (separador `;` + BOM, abre direto no Excel pt-BR)
 
-Tudo responde aos filtros: cada mudança recalcula o painel inteiro a partir das linhas filtradas. Artilharia e assistências são a exceção — a base não liga gol a partida, então esses números são sempre da temporada cheia (indicado na própria seção).
+Tudo responde aos filtros: cada mudança recalcula o painel inteiro a partir das linhas filtradas. A exceção são as assistências, que não têm registro por partida — a própria seção indica o escopo quando há filtro ativo.
 
 ## Stack
 
 - HTML + CSS (Grid/Flex, variáveis CSS, tema verde escuro)
-- JS vanilla, gráficos em SVG desenhados à mão (sem lib de charts)
-- SheetJS (`xlsx.full.min.js`, local) para ler o Excel
+- JS vanilla, gráficos em SVG desenhados à mão (sem lib de charts), redesenhados na largura real da tela
 - Zero build, zero dependências de rede além das fontes
-
-## Dados esperados no Excel
-
-Aba **`Fato_Partidas`** (ou a primeira aba com "fato" no nome; se não houver, a primeira aba do arquivo):
-
-| Coluna | Obrigatória | Observação |
-|---|---|---|
-| `Data` | sim | data serial do Excel, `dd/mm/aaaa` ou ISO |
-| `Adversario` | sim | |
-| `Competicao` | sim | |
-| `Local` | sim | também aceita `Local_Estadio` |
-| `Gols_Palmeiras` | sim | |
-| `Gols_Adversario` | sim | |
-| `Resultado` | sim | `Vitória` / `Empate` / `Derrota` |
-| `Placar` | não | derivado dos gols quando ausente |
-
-Jogos em **Allianz Parque**, **Arena Barueri** ou **Nubank Parque** contam como mando de campo.
-
-Abas opcionais **`Artilharia`** e **`Assistencias`**: uma coluna de nome (`Jogador`) e uma coluna numérica. Sem elas, a seção Elenco avisa que a planilha não trouxe os dados — nada é herdado da planilha anterior.
 
 ## Estrutura
 
 ```
 index.html    marcação e containers
 styles.css    tema, componentes, responsivo e print
-script.js     DATA embutido + cálculo (buildDataFromRows) + renderização
+script.js     base embutida + cálculo (buildDataFromRows) + renderização
+escudo.png    escudo em 220px (topo, hero e favicon)
 ```
 
-O `script.js` tem três camadas: persistência local, a base `DATA` embutida (temporada 2026), e as funções de render. `buildDataFromRows()` é a única fonte de números — tanto o upload quanto cada filtro passam por ela, então não existe estatística calculada em dois lugares diferentes.
+O `script.js` tem duas camadas: a base embutida (`BASE_PARTIDAS`, `APELIDOS`, `JOGOS_ANTES_DO_MATA_MATA`, `BASE_ASSISTENCIAS`) e as funções de cálculo e render. `buildDataFromRows()` é a única fonte de números — cada filtro passa por ela, então não existe estatística calculada em dois lugares diferentes.

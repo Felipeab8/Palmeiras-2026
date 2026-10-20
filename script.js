@@ -1,52 +1,132 @@
 /* ================================================================
-   PERSISTÊNCIA LOCAL
-   Guarda a última planilha carregada (partidas + elenco) para que o
-   painel volte com os dados do usuário ao reabrir o arquivo.
-   Formato v2: {v:2, rows:[...], players:{artilharia, assistencias}}.
-   O formato antigo (array puro de partidas) continua sendo lido.
+   BASE EMBUTIDA · TEMPORADA 2026
+   Dados até Athletico-PR 0 x 2 Palmeiras, em 17/10/2026.
+   Uma linha por partida, em ordem cronológica:
+     [data, adversário, competição, estádio, gols PAL, gols ADV, autores, placar?]
+   "autores" é o texto da fonte, como veio: "V.Roque (2), Andreas e Sosa";
+   "(c)" marca gol contra a favor. Apelidos viram nome completo via
+   APELIDOS, logo abaixo. O placar é montado a partir dos gols; o 8º
+   campo só aparece quando a fonte traz algo além disso (pênaltis).
+   Mando sai do estádio (CASA_LOCAIS) e resultado sai dos gols — para
+   atualizar, basta acrescentar linhas aqui. Se os autores de um jogo
+   não somarem o placar, o console avisa.
    ================================================================ */
-const STORAGE_KEY = 'palmeiras_bi_2026_rawrows';
+const BASE_PARTIDAS = [
+  ['10/01/2026', 'Portuguesa',          'Paulista',       'Canindé',         1, 0, 'Luighi'],
+  ['14/01/2026', 'Santos',              'Paulista',       'Arena Barueri',   1, 0, 'Allan'],
+  ['17/01/2026', 'Mirassol',            'Paulista',       'Arena Barueri',   1, 0, 'López'],
+  ['20/01/2026', 'Novorizontino',       'Paulista',       'Novo Horizonte',  0, 4, ''],
+  ['24/01/2026', 'São Paulo',           'Paulista',       'Arena Barueri',   3, 1, 'Maurício, López e Khellven'],
+  ['28/01/2026', 'Atlético-MG',         'Brasileirão',    'Arena MRV',       2, 2, 'López e V.Roque'],
+  ['01/02/2026', 'Botafogo-SP',         'Paulista',       'Ribeirão Preto',  0, 1, ''],
+  ['04/02/2026', 'Vitória',             'Brasileirão',    'Arena Barueri',   5, 1, 'Murilo, Gómez, Maurício, Allan e Sosa'],
+  ['08/02/2026', 'Corinthians',         'Paulista',       'Itaquerão',       1, 0, 'López'],
+  ['12/02/2026', 'Internacional',       'Brasileirão',    'Beira-Rio',       3, 1, 'Gómez, V.Roque e Andreas'],
+  ['15/02/2026', 'Guarani',             'Paulista',       'Arena Barueri',   1, 1, 'López'],
+  ['21/02/2026', 'Capivariano',         'Paulista',       'Arena Barueri',   4, 0, 'V.Roque (2), Andreas e Sosa'],
+  ['25/02/2026', 'Fluminense',          'Brasileirão',    'Arena Barueri',   2, 1, 'V.Roque e Allan'],
+  ['01/03/2026', 'São Paulo',           'Paulista',       'Arena Barueri',   2, 1, 'Maurício e López'],
+  ['04/03/2026', 'Novorizontino',       'Paulista',       'Arena Barueri',   1, 0, 'López'],
+  ['08/03/2026', 'Novorizontino',       'Paulista',       'Novo Horizonte',  2, 1, 'Murilo e V.Roque'],
+  ['12/03/2026', 'Vasco',               'Brasileirão',    'São Januário',    1, 2, 'López'],
+  ['15/03/2026', 'Mirassol',            'Brasileirão',    'Allianz Parque',  1, 0, 'López'],
+  ['18/03/2026', 'Botafogo',            'Brasileirão',    'Allianz Parque',  2, 1, 'Allan e Arias'],
+  ['21/03/2026', 'São Paulo',           'Brasileirão',    'Morumbi',         1, 0, 'Arias'],
+  ['02/04/2026', 'Grêmio',              'Brasileirão',    'Arena Barueri',   2, 1, 'M.Freitas (2)'],
+  ['05/04/2026', 'Bahia',               'Brasileirão',    'Fonte Nova',      2, 1, 'Arias e Ramos (c)'],
+  ['08/04/2026', 'Junior Barranquilla', 'Libertadores',   'Cartagena-COL',   1, 1, 'Sosa'],
+  ['12/04/2026', 'Corinthians',         'Brasileirão',    'Itaquerão',       0, 0, ''],
+  ['16/04/2026', 'Sporting Cristal',    'Libertadores',   'Allianz Parque',  2, 1, 'Murilo e López'],
+  ['19/04/2026', 'Athletico-PR',        'Brasileirão',    'Allianz Parque',  1, 0, 'Gómez'],
+  ['23/04/2026', 'Jacuipense',          'Copa do Brasil', 'Allianz Parque',  3, 0, 'Sosa (2) e F.Anderson'],
+  ['26/04/2026', 'Red Bull Bragantino', 'Brasileirão',    'Bragança',        1, 0, 'López'],
+  ['29/04/2026', 'Cerro Porteño',       'Libertadores',   'Assunção-PAR',    1, 1, 'Arias'],
+  ['02/05/2026', 'Santos',              'Brasileirão',    'Allianz Parque',  1, 1, 'López'],
+  ['05/05/2026', 'Sporting Cristal',    'Libertadores',   'Lima-PER',        2, 0, 'López e Sosa'],
+  ['10/05/2026', 'Remo',                'Brasileirão',    'Mangueirão',      1, 1, 'Sosa'],
+  ['13/05/2026', 'Jacuipense',          'Copa do Brasil', 'Estádio do Café', 4, 1, 'Maurício, Felipe A., Belé e Luighi'],
+  ['16/05/2026', 'Cruzeiro',            'Brasileirão',    'Arena Barueri',   1, 1, 'F.Anderson'],
+  ['20/05/2026', 'Cerro Porteño',       'Libertadores',   'Allianz Parque',  0, 1, ''],
+  ['23/05/2026', 'Flamengo',            'Brasileirão',    'Maracanã',        3, 0, 'López, Allan e Paulinho'],
+  ['28/05/2026', 'Junior Barranquilla', 'Libertadores',   'Allianz Parque',  4, 1, 'Arias (2), Allan e Andreas'],
+  ['31/05/2026', 'Chapecoense',         'Brasileirão',    'Allianz Parque',  1, 0, 'Paulinho'],
+  ['22/07/2026', 'Coritiba',            'Brasileirão',    'Couto Pereira',   3, 1, 'Maurício (2) e Sosa'],
+  ['26/07/2026', 'Atlético-MG',         'Brasileirão',    'Nubank Parque',   1, 2, 'Felipe Anderson'],
+  ['29/07/2026', 'Vitória',             'Brasileirão',    'Barradão',        4, 0, 'Maurício, Fabiano (c), Arias e Sosa'],
+  ['02/08/2026', 'Fortaleza',           'Copa do Brasil', 'Nubank Parque',   3, 0, 'Maurício, Arias e López'],
+  ['05/08/2026', 'Fortaleza',           'Copa do Brasil', 'Arena Pantanal',  2, 3, 'López e Murilo'],
+  ['09/08/2026', 'Internacional',       'Brasileirão',    'Nubank Parque',   0, 0, ''],
+  ['12/08/2026', 'Cerro Porteño',       'Libertadores',   'Nubank Parque',   1, 1, 'López'],
+  ['15/08/2026', 'Fluminense',          'Brasileirão',    'Maracanã',        2, 3, 'Gómez e Maurício'],
+  ['19/08/2026', 'Cerro Porteño',       'Libertadores',   'Assunção',        1, 0, 'Gómez'],
+  ['23/08/2026', 'Vasco',               'Brasileirão',    'Nubank Parque',   4, 1, 'López (2), V.Roque e Maurício'],
+  ['26/08/2026', 'Santos',              'Copa do Brasil', 'Nubank Parque',   3, 0, 'López (2) e Andreas Pereira'],
+  ['30/08/2026', 'Mirassol',            'Brasileirão',    'Mirassol',        1, 1, 'Maurício'],
+  ['02/09/2026', 'Santos',              'Copa do Brasil', 'Vila Belmiro',    0, 0, ''],
+  ['06/09/2026', 'Botafogo',            'Brasileirão',    'Engenhão',        0, 0, ''],
+  ['09/09/2026', 'LDU',                 'Libertadores',   'Nubank Parque',   1, 0, 'Giay'],
+  ['12/09/2026', 'São Paulo',           'Brasileirão',    'Nubank Parque',   2, 0, 'Murilo e V.Roque'],
+  ['16/09/2026', 'LDU',                 'Libertadores',   'Quito',           2, 3, 'Marlon e V.Roque', '2(3)x(4)3'],
+  ['20/09/2026', 'Grêmio',              'Brasileirão',    'Arena Grêmio',    0, 0, ''],
+  ['08/10/2026', 'Bahia',               'Brasileirão',    'Nubank Parque',   1, 0, 'López'],
+  ['11/10/2026', 'Corinthians',         'Brasileirão',    'Nubank Parque',   4, 1, 'Barboza, Giay (2) e Bidu (c)'],
+  ['14/10/2026', 'Fluminense',          'Libertadores',   'Maracanã',        2, 1, 'López e Marlon'],
+  ['17/10/2026', 'Athletico-PR',        'Brasileirão',    'Ligga Arena',     2, 0, 'Maurício e Piquerez'],
+];
 
-function saveToStorage(rows, players){
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      v: 2,
-      rows,
-      players: players || {artilharia: [], assistencias: []},
-    }));
-  } catch (e) {
-    console.warn('Não foi possível salvar no localStorage:', e);
-  }
-}
+/* Como a fonte abrevia cada nome → nome completo. Um apelido novo que
+   não estiver aqui vira um "jogador" separado na artilharia. */
+const APELIDOS = {
+  'V.Roque':    'Vitor Roque',
+  'F.Anderson': 'Felipe Anderson',
+  'Felipe A.':  'Felipe Anderson',
+  'M.Freitas':  'Marlon Freitas',
+  'Marlon':     'Marlon Freitas',
+  'Andreas':    'Andreas Pereira',
+  'Belé':       'Erick Belé',
+  'Ramos':      'Ramos Mingo',
+};
 
-function loadFromStorage(){
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    const rows = Array.isArray(parsed) ? parsed : (parsed.rows || []);
-    const players = Array.isArray(parsed) ? null : parsed.players;
-    const hydrated = rows
-      .map(r => ({...r, DataObj: r.DataObj ? new Date(r.DataObj) : null}))
-      .filter(r => r.DataObj && !isNaN(r.DataObj));
-    return hydrated.length ? {rows: hydrated, players} : null;
-  } catch (e) {
-    console.warn('Erro ao ler localStorage:', e);
-    return null;
-  }
-}
+/* Mata-mata não vale pontos: na tabela de partidas esses jogos mostram
+   "—" na coluna Pts. Por competição, quantos jogos de fase de pontos vêm
+   antes do mata-mata: a Copa do Brasil é toda eliminatória; na
+   Libertadores, o mata-mata começa depois dos 6 jogos da fase de grupos.
+   Competição fora desta lista tem pontos em todos os jogos. */
+const JOGOS_ANTES_DO_MATA_MATA = {
+  'Copa do Brasil': 0,
+  'Libertadores':   6,
+};
 
-function clearStorage(){
-  try { localStorage.removeItem(STORAGE_KEY); } catch(e){ /* modo privado */ }
-}
+/* A artilharia sai dos autores de cada jogo (e por isso responde aos
+   filtros). Assistências não têm registro por partida: ficam aqui, da
+   temporada inteira. */
+const BASE_ASSISTENCIAS = [
+  {Jogador:'López',             Assistencias:12},
+  {Jogador:'Andreas Pereira',   Assistencias:12},
+  {Jogador:'Sosa',              Assistencias:7},
+  {Jogador:'Piquerez',          Assistencias:6},
+  {Jogador:'Felipe Anderson',   Assistencias:6},
+  {Jogador:'Arias',             Assistencias:6},
+  {Jogador:'Allan',             Assistencias:6},
+  {Jogador:'Lucas Evangelista', Assistencias:3},
+  {Jogador:'Maurício',          Assistencias:3},
+  {Jogador:'Gómez',             Assistencias:3},
+  {Jogador:'Marlon Freitas',    Assistencias:2},
+  {Jogador:'Murilo',            Assistencias:2},
+  {Jogador:'Barboza',           Assistencias:1},
+  {Jogador:'Khellven',          Assistencias:1},
+  {Jogador:'Giay',              Assistencias:1},
+  {Jogador:'Jefté',             Assistencias:1},
+  {Jogador:'Vitor Roque',       Assistencias:1},
+];
 
-let DATA = {"header": {"jogos": 44, "vitorias": 29, "empates": 9, "derrotas": 6, "golsMarcados": 77, "golsSofridos": 34, "saldo": 43, "pontos": 96, "pontosPossiveis": 132, "aproveitamento": 72.7}, "porCompeticao": [{"competicao": "Paulista", "jogos": 12, "vitorias": 9, "empates": 1, "derrotas": 2, "golsMarcados": 17, "golsSofridos": 9, "saldo": 8, "pontos": 28, "pontosPossiveis": 36, "aproveitamento": 77.8, "mediaGP": 1.42, "mediaGC": 0.75}, {"competicao": "Copa do Brasil", "jogos": 4, "vitorias": 3, "empates": 0, "derrotas": 1, "golsMarcados": 12, "golsSofridos": 4, "saldo": 8, "pontos": 9, "pontosPossiveis": 12, "aproveitamento": 75.0, "mediaGP": 3.0, "mediaGC": 1.0}, {"competicao": "Brasileirão", "jogos": 22, "vitorias": 14, "empates": 6, "derrotas": 2, "golsMarcados": 38, "golsSofridos": 16, "saldo": 22, "pontos": 48, "pontosPossiveis": 66, "aproveitamento": 72.7, "mediaGP": 1.73, "mediaGC": 0.73}, {"competicao": "Libertadores", "jogos": 6, "vitorias": 3, "empates": 2, "derrotas": 1, "golsMarcados": 10, "golsSofridos": 5, "saldo": 5, "pontos": 11, "pontosPossiveis": 18, "aproveitamento": 61.1, "mediaGP": 1.67, "mediaGC": 0.83}], "melhorCompeticao": "Paulista", "piorCompeticao": "Libertadores", "casaXFora": {"casa": {"jogos": 23, "vitorias": 17, "empates": 4, "derrotas": 2, "golsMarcados": 42, "golsSofridos": 14, "saldo": 28, "pontos": 55, "pontosPossiveis": 69, "aproveitamento": 79.7, "mediaGolsJogo": 1.83}, "fora": {"jogos": 21, "vitorias": 12, "empates": 5, "derrotas": 4, "golsMarcados": 35, "golsSofridos": 20, "saldo": 15, "pontos": 41, "pontosPossiveis": 63, "aproveitamento": 65.1, "mediaGolsJogo": 1.67}}, "maisEnfrentados": [{"adversario": "Novorizontino", "jogos": 3, "vitorias": 2, "empates": 0, "derrotas": 1, "golsMarcados": 3, "golsSofridos": 5, "saldo": -2, "aproveitamento": 66.7}, {"adversario": "São Paulo", "jogos": 3, "vitorias": 3, "empates": 0, "derrotas": 0, "golsMarcados": 6, "golsSofridos": 2, "saldo": 4, "aproveitamento": 100.0}, {"adversario": "Atlético-MG", "jogos": 2, "vitorias": 0, "empates": 1, "derrotas": 1, "golsMarcados": 3, "golsSofridos": 4, "saldo": -1, "aproveitamento": 16.7}, {"adversario": "Cerro Porteño", "jogos": 2, "vitorias": 0, "empates": 1, "derrotas": 1, "golsMarcados": 1, "golsSofridos": 2, "saldo": -1, "aproveitamento": 16.7}, {"adversario": "Corinthians", "jogos": 2, "vitorias": 1, "empates": 1, "derrotas": 0, "golsMarcados": 1, "golsSofridos": 0, "saldo": 1, "aproveitamento": 66.7}, {"adversario": "Fortaleza", "jogos": 2, "vitorias": 1, "empates": 0, "derrotas": 1, "golsMarcados": 5, "golsSofridos": 3, "saldo": 2, "aproveitamento": 50.0}], "melhorAproveitamento": [{"adversario": "Jacuipense", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 7, "golsSofridos": 1, "saldo": 6, "aproveitamento": 100.0}, {"adversario": "Mirassol", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 2, "golsSofridos": 0, "saldo": 2, "aproveitamento": 100.0}, {"adversario": "Sporting Cristal", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 4, "golsSofridos": 1, "saldo": 3, "aproveitamento": 100.0}, {"adversario": "São Paulo", "jogos": 3, "vitorias": 3, "empates": 0, "derrotas": 0, "golsMarcados": 6, "golsSofridos": 2, "saldo": 4, "aproveitamento": 100.0}, {"adversario": "Vitória", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 9, "golsSofridos": 1, "saldo": 8, "aproveitamento": 100.0}, {"adversario": "Corinthians", "jogos": 2, "vitorias": 1, "empates": 1, "derrotas": 0, "golsMarcados": 1, "golsSofridos": 0, "saldo": 1, "aproveitamento": 66.7}], "maiorDificuldade": [{"adversario": "Botafogo-SP", "jogos": 1, "vitorias": 0, "empates": 0, "derrotas": 1, "golsMarcados": 0, "golsSofridos": 1, "saldo": -1, "aproveitamento": 0.0}, {"adversario": "Vasco", "jogos": 1, "vitorias": 0, "empates": 0, "derrotas": 1, "golsMarcados": 1, "golsSofridos": 2, "saldo": -1, "aproveitamento": 0.0}, {"adversario": "Atlético-MG", "jogos": 2, "vitorias": 0, "empates": 1, "derrotas": 1, "golsMarcados": 3, "golsSofridos": 4, "saldo": -1, "aproveitamento": 16.7}, {"adversario": "Cerro Porteño", "jogos": 2, "vitorias": 0, "empates": 1, "derrotas": 1, "golsMarcados": 1, "golsSofridos": 2, "saldo": -1, "aproveitamento": 16.7}, {"adversario": "Cruzeiro", "jogos": 1, "vitorias": 0, "empates": 1, "derrotas": 0, "golsMarcados": 1, "golsSofridos": 1, "saldo": 0, "aproveitamento": 33.3}, {"adversario": "Guarani", "jogos": 1, "vitorias": 0, "empates": 1, "derrotas": 0, "golsMarcados": 1, "golsSofridos": 1, "saldo": 0, "aproveitamento": 33.3}], "maisVencidos": [{"adversario": "São Paulo", "jogos": 3, "vitorias": 3, "empates": 0, "derrotas": 0, "golsMarcados": 6, "golsSofridos": 2, "saldo": 4, "aproveitamento": 100.0}, {"adversario": "Jacuipense", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 7, "golsSofridos": 1, "saldo": 6, "aproveitamento": 100.0}, {"adversario": "Mirassol", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 2, "golsSofridos": 0, "saldo": 2, "aproveitamento": 100.0}, {"adversario": "Novorizontino", "jogos": 3, "vitorias": 2, "empates": 0, "derrotas": 1, "golsMarcados": 3, "golsSofridos": 5, "saldo": -2, "aproveitamento": 66.7}, {"adversario": "Sporting Cristal", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 4, "golsSofridos": 1, "saldo": 3, "aproveitamento": 100.0}, {"adversario": "Vitória", "jogos": 2, "vitorias": 2, "empates": 0, "derrotas": 0, "golsMarcados": 9, "golsSofridos": 1, "saldo": 8, "aproveitamento": 100.0}], "sequencias": {"maiorVitorias": 5, "maiorSemPerder": 17, "maiorDerrotas": 1, "maiorSemVencer": 2, "maiorMarcando": 16, "maiorSemSofrer": 3, "maiorSofrendo": 5}, "ultimos5": [{"data": "26/07/2026", "adversario": "Atlético-MG", "competicao": "Brasileirão", "local": "Casa", "placar": "1x2", "resultado": "Derrota", "gp": 1, "gc": 2}, {"data": "29/07/2026", "adversario": "Vitória", "competicao": "Brasileirão", "local": "Fora", "placar": "4x0", "resultado": "Vitória", "gp": 4, "gc": 0}, {"data": "02/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Casa", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "05/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Fora", "placar": "2x3", "resultado": "Derrota", "gp": 2, "gc": 3}, {"data": "09/08/2026", "adversario": "Internacional", "competicao": "Brasileirão", "local": "Casa", "placar": "0x0", "resultado": "Empate", "gp": 0, "gc": 0}], "ultimos10": [{"data": "20/05/2026", "adversario": "Cerro Porteño", "competicao": "Libertadores", "local": "Casa", "placar": "0x1", "resultado": "Derrota", "gp": 0, "gc": 1}, {"data": "23/05/2026", "adversario": "Flamengo", "competicao": "Brasileirão", "local": "Fora", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "28/05/2026", "adversario": "Junior Barranquilla", "competicao": "Libertadores", "local": "Casa", "placar": "4x1", "resultado": "Vitória", "gp": 4, "gc": 1}, {"data": "31/05/2026", "adversario": "Chapecoense", "competicao": "Brasileirão", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "22/07/2026", "adversario": "Coritiba", "competicao": "Brasileirão", "local": "Fora", "placar": "3x1", "resultado": "Vitória", "gp": 3, "gc": 1}, {"data": "26/07/2026", "adversario": "Atlético-MG", "competicao": "Brasileirão", "local": "Casa", "placar": "1x2", "resultado": "Derrota", "gp": 1, "gc": 2}, {"data": "29/07/2026", "adversario": "Vitória", "competicao": "Brasileirão", "local": "Fora", "placar": "4x0", "resultado": "Vitória", "gp": 4, "gc": 0}, {"data": "02/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Casa", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "05/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Fora", "placar": "2x3", "resultado": "Derrota", "gp": 2, "gc": 3}, {"data": "09/08/2026", "adversario": "Internacional", "competicao": "Brasileirão", "local": "Casa", "placar": "0x0", "resultado": "Empate", "gp": 0, "gc": 0}], "momentoAtual": {"sequencia": ["D", "V", "V", "D", "E"], "pontos": 7, "aproveitamento": 46.7, "classificacao": "Regular", "tendencia": "Caindo", "pontos10": 19, "aproveitamento10": 63.3}, "goleadaAplicada": {"adversario": "Vitória", "placar": "5x1", "data": "04/02/2026", "competicao": "Brasileirão"}, "goleadaSofrida": {"adversario": "Novorizontino", "placar": "0x4", "data": "20/01/2026", "competicao": "Paulista"}, "cleanSheets": 18, "jogosSemMarcar": 5, "maiorGP_umJogo": 5, "maiorGC_umJogo": 4, "distribuicaoGolsMarcados": {"0": 5, "1": 18, "2": 10, "3": 6, "4": 4, "5": 1}, "evolucao": [{"jogo": 1, "data": "10/01/2026", "pontosAcum": 3, "saldoAcum": 1, "gp": 1, "gc": 0, "aprovMovel5": null}, {"jogo": 2, "data": "14/01/2026", "pontosAcum": 6, "saldoAcum": 2, "gp": 1, "gc": 0, "aprovMovel5": null}, {"jogo": 3, "data": "17/01/2026", "pontosAcum": 9, "saldoAcum": 3, "gp": 1, "gc": 0, "aprovMovel5": null}, {"jogo": 4, "data": "20/01/2026", "pontosAcum": 9, "saldoAcum": -1, "gp": 0, "gc": 4, "aprovMovel5": null}, {"jogo": 5, "data": "24/01/2026", "pontosAcum": 12, "saldoAcum": 1, "gp": 3, "gc": 1, "aprovMovel5": 80.0}, {"jogo": 6, "data": "28/01/2026", "pontosAcum": 13, "saldoAcum": 1, "gp": 2, "gc": 2, "aprovMovel5": 66.7}, {"jogo": 7, "data": "01/02/2026", "pontosAcum": 13, "saldoAcum": 0, "gp": 0, "gc": 1, "aprovMovel5": 46.7}, {"jogo": 8, "data": "04/02/2026", "pontosAcum": 16, "saldoAcum": 4, "gp": 5, "gc": 1, "aprovMovel5": 46.7}, {"jogo": 9, "data": "08/02/2026", "pontosAcum": 19, "saldoAcum": 5, "gp": 1, "gc": 0, "aprovMovel5": 66.7}, {"jogo": 10, "data": "12/02/2026", "pontosAcum": 22, "saldoAcum": 7, "gp": 3, "gc": 1, "aprovMovel5": 66.7}, {"jogo": 11, "data": "15/02/2026", "pontosAcum": 23, "saldoAcum": 7, "gp": 1, "gc": 1, "aprovMovel5": 66.7}, {"jogo": 12, "data": "21/02/2026", "pontosAcum": 26, "saldoAcum": 11, "gp": 4, "gc": 0, "aprovMovel5": 86.7}, {"jogo": 13, "data": "25/02/2026", "pontosAcum": 29, "saldoAcum": 12, "gp": 2, "gc": 1, "aprovMovel5": 86.7}, {"jogo": 14, "data": "01/03/2026", "pontosAcum": 32, "saldoAcum": 13, "gp": 2, "gc": 1, "aprovMovel5": 86.7}, {"jogo": 15, "data": "04/03/2026", "pontosAcum": 35, "saldoAcum": 14, "gp": 1, "gc": 0, "aprovMovel5": 86.7}, {"jogo": 16, "data": "08/03/2026", "pontosAcum": 38, "saldoAcum": 15, "gp": 2, "gc": 1, "aprovMovel5": 100.0}, {"jogo": 17, "data": "12/03/2026", "pontosAcum": 38, "saldoAcum": 14, "gp": 1, "gc": 2, "aprovMovel5": 80.0}, {"jogo": 18, "data": "15/03/2026", "pontosAcum": 41, "saldoAcum": 15, "gp": 1, "gc": 0, "aprovMovel5": 80.0}, {"jogo": 19, "data": "18/03/2026", "pontosAcum": 44, "saldoAcum": 16, "gp": 2, "gc": 1, "aprovMovel5": 80.0}, {"jogo": 20, "data": "21/03/2026", "pontosAcum": 47, "saldoAcum": 17, "gp": 1, "gc": 0, "aprovMovel5": 80.0}, {"jogo": 21, "data": "02/04/2026", "pontosAcum": 50, "saldoAcum": 18, "gp": 2, "gc": 1, "aprovMovel5": 80.0}, {"jogo": 22, "data": "05/04/2026", "pontosAcum": 53, "saldoAcum": 19, "gp": 2, "gc": 1, "aprovMovel5": 100.0}, {"jogo": 23, "data": "08/04/2026", "pontosAcum": 54, "saldoAcum": 19, "gp": 1, "gc": 1, "aprovMovel5": 86.7}, {"jogo": 24, "data": "12/04/2026", "pontosAcum": 55, "saldoAcum": 19, "gp": 0, "gc": 0, "aprovMovel5": 73.3}, {"jogo": 25, "data": "16/04/2026", "pontosAcum": 58, "saldoAcum": 20, "gp": 2, "gc": 1, "aprovMovel5": 73.3}, {"jogo": 26, "data": "19/04/2026", "pontosAcum": 61, "saldoAcum": 21, "gp": 1, "gc": 0, "aprovMovel5": 73.3}, {"jogo": 27, "data": "23/04/2026", "pontosAcum": 64, "saldoAcum": 24, "gp": 3, "gc": 0, "aprovMovel5": 73.3}, {"jogo": 28, "data": "26/04/2026", "pontosAcum": 67, "saldoAcum": 25, "gp": 1, "gc": 0, "aprovMovel5": 86.7}, {"jogo": 29, "data": "29/04/2026", "pontosAcum": 68, "saldoAcum": 25, "gp": 1, "gc": 1, "aprovMovel5": 86.7}, {"jogo": 30, "data": "02/05/2026", "pontosAcum": 69, "saldoAcum": 25, "gp": 1, "gc": 1, "aprovMovel5": 73.3}, {"jogo": 31, "data": "05/05/2026", "pontosAcum": 72, "saldoAcum": 27, "gp": 2, "gc": 0, "aprovMovel5": 73.3}, {"jogo": 32, "data": "10/05/2026", "pontosAcum": 73, "saldoAcum": 27, "gp": 1, "gc": 1, "aprovMovel5": 60.0}, {"jogo": 33, "data": "13/05/2026", "pontosAcum": 76, "saldoAcum": 30, "gp": 4, "gc": 1, "aprovMovel5": 60.0}, {"jogo": 34, "data": "16/05/2026", "pontosAcum": 77, "saldoAcum": 30, "gp": 1, "gc": 1, "aprovMovel5": 60.0}, {"jogo": 35, "data": "20/05/2026", "pontosAcum": 77, "saldoAcum": 29, "gp": 0, "gc": 1, "aprovMovel5": 53.3}, {"jogo": 36, "data": "23/05/2026", "pontosAcum": 80, "saldoAcum": 32, "gp": 3, "gc": 0, "aprovMovel5": 53.3}, {"jogo": 37, "data": "28/05/2026", "pontosAcum": 83, "saldoAcum": 35, "gp": 4, "gc": 1, "aprovMovel5": 66.7}, {"jogo": 38, "data": "31/05/2026", "pontosAcum": 86, "saldoAcum": 36, "gp": 1, "gc": 0, "aprovMovel5": 66.7}, {"jogo": 39, "data": "22/07/2026", "pontosAcum": 89, "saldoAcum": 38, "gp": 3, "gc": 1, "aprovMovel5": 80.0}, {"jogo": 40, "data": "26/07/2026", "pontosAcum": 89, "saldoAcum": 37, "gp": 1, "gc": 2, "aprovMovel5": 80.0}, {"jogo": 41, "data": "29/07/2026", "pontosAcum": 92, "saldoAcum": 41, "gp": 4, "gc": 0, "aprovMovel5": 80.0}, {"jogo": 42, "data": "02/08/2026", "pontosAcum": 95, "saldoAcum": 44, "gp": 3, "gc": 0, "aprovMovel5": 80.0}, {"jogo": 43, "data": "05/08/2026", "pontosAcum": 95, "saldoAcum": 43, "gp": 2, "gc": 3, "aprovMovel5": 60.0}, {"jogo": 44, "data": "09/08/2026", "pontosAcum": 96, "saldoAcum": 43, "gp": 0, "gc": 0, "aprovMovel5": 46.7}], "resultadoMatrix": [{"resultado": "Vitória", "qtd": 29, "pct": 65.9}, {"resultado": "Empate", "qtd": 9, "pct": 20.5}, {"resultado": "Derrota", "qtd": 6, "pct": 13.6}], "artilharia": [{"Jogador": "López", "Gols": 16}, {"Jogador": "Sosa", "Gols": 9}, {"Jogador": "Maurício", "Gols": 8}, {"Jogador": "Arias", "Gols": 8}, {"Jogador": "Allan", "Gols": 6}, {"Jogador": "Vitor Roque", "Gols": 6}, {"Jogador": "Felipe Anderson", "Gols": 4}, {"Jogador": "Murilo", "Gols": 4}, {"Jogador": "Andreas", "Gols": 3}, {"Jogador": "Gómez", "Gols": 3}, {"Jogador": "Paulinho", "Gols": 2}, {"Jogador": "Luighi", "Gols": 2}, {"Jogador": "Marlon Freitas", "Gols": 2}, {"Jogador": "Khellven", "Gols": 1}, {"Jogador": "Erick Belé", "Gols": 1}], "assistencias": [{"Jogador": "López", "Assistencias": 10}, {"Jogador": "Andreas Pereira", "Assistencias": 10}, {"Jogador": "Sosa", "Assistencias": 7}, {"Jogador": "Allan", "Assistencias": 5}, {"Jogador": "Felipe Anderson", "Assistencias": 5}, {"Jogador": "Piquerez", "Assistencias": 4}, {"Jogador": "Maurício", "Assistencias": 3}, {"Jogador": "Arias", "Assistencias": 3}, {"Jogador": "Murilo", "Assistencias": 2}, {"Jogador": "Lucas Evangelista", "Assistencias": 2}, {"Jogador": "Jefté", "Assistencias": 1}, {"Jogador": "Marlon Freitas", "Assistencias": 1}, {"Jogador": "Vitor Roque", "Assistencias": 1}, {"Jogador": "Gómez", "Assistencias": 1}], "todasPartidas": [{"data": "10/01/2026", "adversario": "Portuguesa", "competicao": "Paulista", "local": "Fora", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "14/01/2026", "adversario": "Santos", "competicao": "Paulista", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "17/01/2026", "adversario": "Mirassol", "competicao": "Paulista", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "20/01/2026", "adversario": "Novorizontino", "competicao": "Paulista", "local": "Fora", "placar": "0x4", "resultado": "Derrota", "gp": 0, "gc": 4}, {"data": "24/01/2026", "adversario": "São Paulo", "competicao": "Paulista", "local": "Casa", "placar": "3x1", "resultado": "Vitória", "gp": 3, "gc": 1}, {"data": "28/01/2026", "adversario": "Atlético-MG", "competicao": "Brasileirão", "local": "Fora", "placar": "2x2", "resultado": "Empate", "gp": 2, "gc": 2}, {"data": "01/02/2026", "adversario": "Botafogo-SP", "competicao": "Paulista", "local": "Fora", "placar": "0x1", "resultado": "Derrota", "gp": 0, "gc": 1}, {"data": "04/02/2026", "adversario": "Vitória", "competicao": "Brasileirão", "local": "Casa", "placar": "5x1", "resultado": "Vitória", "gp": 5, "gc": 1}, {"data": "08/02/2026", "adversario": "Corinthians", "competicao": "Paulista", "local": "Fora", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "12/02/2026", "adversario": "Internacional", "competicao": "Brasileirão", "local": "Fora", "placar": "3x1", "resultado": "Vitória", "gp": 3, "gc": 1}, {"data": "15/02/2026", "adversario": "Guarani", "competicao": "Paulista", "local": "Casa", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "21/02/2026", "adversario": "Capivariano", "competicao": "Paulista", "local": "Casa", "placar": "4x0", "resultado": "Vitória", "gp": 4, "gc": 0}, {"data": "25/02/2026", "adversario": "Fluminense", "competicao": "Brasileirão", "local": "Casa", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "01/03/2026", "adversario": "São Paulo", "competicao": "Paulista", "local": "Casa", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "04/03/2026", "adversario": "Novorizontino", "competicao": "Paulista", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "08/03/2026", "adversario": "Novorizontino", "competicao": "Paulista", "local": "Fora", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "12/03/2026", "adversario": "Vasco", "competicao": "Brasileirão", "local": "Fora", "placar": "1x2", "resultado": "Derrota", "gp": 1, "gc": 2}, {"data": "15/03/2026", "adversario": "Mirassol", "competicao": "Brasileirão", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "18/03/2026", "adversario": "Botafogo", "competicao": "Brasileirão", "local": "Casa", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "21/03/2026", "adversario": "São Paulo", "competicao": "Brasileirão", "local": "Fora", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "02/04/2026", "adversario": "Grêmio", "competicao": "Brasileirão", "local": "Casa", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "05/04/2026", "adversario": "Bahia", "competicao": "Brasileirão", "local": "Fora", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "08/04/2026", "adversario": "Junior Barranquilla", "competicao": "Libertadores", "local": "Fora", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "12/04/2026", "adversario": "Corinthians", "competicao": "Brasileirão", "local": "Fora", "placar": "0x0", "resultado": "Empate", "gp": 0, "gc": 0}, {"data": "16/04/2026", "adversario": "Sporting Cristal", "competicao": "Libertadores", "local": "Casa", "placar": "2x1", "resultado": "Vitória", "gp": 2, "gc": 1}, {"data": "19/04/2026", "adversario": "Athletico-PR", "competicao": "Brasileirão", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "23/04/2026", "adversario": "Jacuipense", "competicao": "Copa do Brasil", "local": "Casa", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "26/04/2026", "adversario": "Red Bull Bragantino", "competicao": "Brasileirão", "local": "Fora", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "29/04/2026", "adversario": "Cerro Porteño", "competicao": "Libertadores", "local": "Fora", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "02/05/2026", "adversario": "Santos", "competicao": "Brasileirão", "local": "Casa", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "05/05/2026", "adversario": "Sporting Cristal", "competicao": "Libertadores", "local": "Fora", "placar": "2x0", "resultado": "Vitória", "gp": 2, "gc": 0}, {"data": "10/05/2026", "adversario": "Remo", "competicao": "Brasileirão", "local": "Fora", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "13/05/2026", "adversario": "Jacuipense", "competicao": "Copa do Brasil", "local": "Fora", "placar": "4x1", "resultado": "Vitória", "gp": 4, "gc": 1}, {"data": "16/05/2026", "adversario": "Cruzeiro", "competicao": "Brasileirão", "local": "Casa", "placar": "1x1", "resultado": "Empate", "gp": 1, "gc": 1}, {"data": "20/05/2026", "adversario": "Cerro Porteño", "competicao": "Libertadores", "local": "Casa", "placar": "0x1", "resultado": "Derrota", "gp": 0, "gc": 1}, {"data": "23/05/2026", "adversario": "Flamengo", "competicao": "Brasileirão", "local": "Fora", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "28/05/2026", "adversario": "Junior Barranquilla", "competicao": "Libertadores", "local": "Casa", "placar": "4x1", "resultado": "Vitória", "gp": 4, "gc": 1}, {"data": "31/05/2026", "adversario": "Chapecoense", "competicao": "Brasileirão", "local": "Casa", "placar": "1x0", "resultado": "Vitória", "gp": 1, "gc": 0}, {"data": "22/07/2026", "adversario": "Coritiba", "competicao": "Brasileirão", "local": "Fora", "placar": "3x1", "resultado": "Vitória", "gp": 3, "gc": 1}, {"data": "26/07/2026", "adversario": "Atlético-MG", "competicao": "Brasileirão", "local": "Casa", "placar": "1x2", "resultado": "Derrota", "gp": 1, "gc": 2}, {"data": "29/07/2026", "adversario": "Vitória", "competicao": "Brasileirão", "local": "Fora", "placar": "4x0", "resultado": "Vitória", "gp": 4, "gc": 0}, {"data": "02/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Casa", "placar": "3x0", "resultado": "Vitória", "gp": 3, "gc": 0}, {"data": "05/08/2026", "adversario": "Fortaleza", "competicao": "Copa do Brasil", "local": "Fora", "placar": "2x3", "resultado": "Derrota", "gp": 2, "gc": 3}, {"data": "09/08/2026", "adversario": "Internacional", "competicao": "Brasileirão", "local": "Casa", "placar": "0x0", "resultado": "Empate", "gp": 0, "gc": 0}], "competicoesLista": ["Brasileirão", "Copa do Brasil", "Libertadores", "Paulista"], "adversariosLista": ["Athletico-PR", "Atlético-MG", "Bahia", "Botafogo", "Botafogo-SP", "Capivariano", "Cerro Porteño", "Chapecoense", "Corinthians", "Coritiba", "Cruzeiro", "Flamengo", "Fluminense", "Fortaleza", "Grêmio", "Guarani", "Internacional", "Jacuipense", "Junior Barranquilla", "Mirassol", "Novorizontino", "Portuguesa", "Red Bull Bragantino", "Remo", "Santos", "Sporting Cristal", "São Paulo", "Vasco", "Vitória"]};
+let DATA = emptyData();
 
 /* ================================================================
    PALMEIRAS · BI SPORTS ANALYTICS
    Camada de renderização. Tudo o que aparece na tela é derivado de
    DATA, que por sua vez é sempre recalculado a partir de RAW_ROWS
-   (base carregada) pelo recorte de filtros ativo.
+   (a base embutida) pelo recorte de filtros ativo.
    ================================================================ */
 
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -58,13 +138,7 @@ const UI = {
   gamesScope: 10,               // 5 | 10 | 'all'
   gamesSort: {key:'data', dir:'desc'},
   gamesQuery: '',
-};
-
-/* Artilharia/assistências vivem fora de DATA: são da temporada
-   inteira e não têm como ser recortadas por partida. */
-let PLAYERS = {
-  artilharia: DATA.artilharia || [],
-  assistencias: DATA.assistencias || [],
+  elencoAberto: {},             // {Artilharia: true} = lista completa
 };
 
 /* ---------- helpers ---------- */
@@ -82,12 +156,20 @@ function esc(s){
 function aprovClass(v){ return v >= 66.6 ? 'hi' : v >= 40 ? 'mid' : 'lo'; }
 function resClass(r){ return r === 'Vitória' ? 'v' : r === 'Empate' ? 'e' : 'd'; }
 function signed(v){ return (v > 0 ? '+' : '') + v; }
-function pct(v){ return (Number(v) || 0).toFixed(1) + '%'; }
+// Decimais à brasileira: 71,1% · 1,42 gol por jogo
+function num(v, casas){
+  return (Number(v) || 0).toLocaleString('pt-BR', {minimumFractionDigits: casas, maximumFractionDigits: casas});
+}
+function pct(v){ return num(v, 1) + '%'; }
 function plural(n, um, muitos){ return n === 1 ? um : muitos; }
 function parseBR(s){
   const [dd, mm, yyyy] = String(s).split('/');
   return new Date(+yyyy, +mm - 1, +dd);
 }
+// "dd/mm/aaaa" → "dd/mm": a temporada inteira é do mesmo ano
+function ddmm(s){ return String(s).slice(0, 5); }
+// Busca sem acento e sem caixa: "lopez" encontra "López"
+function fold(s){ return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 function emptyMsg(txt){
   return '<div style="padding:34px 12px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--grey-3)">' + esc(txt) + '</div>';
 }
@@ -150,6 +232,12 @@ function renderChrome(){
   hf.innerHTML = '';
   (DATA.momentoAtual.sequencia || []).forEach(r => hf.appendChild(el('div', 'fc ' + r, r)));
 
+  // Último jogo da base inteira (não do recorte): diz até quando os dados vão
+  const ult = RAW_ROWS[RAW_ROWS.length - 1];
+  document.getElementById('hero-updated').textContent = ult
+    ? 'Dados até ' + fmtDateBR(ult.DataObj) + ' · ' + ult.Placar + ' vs ' + ult.Adversario
+    : '';
+
   document.getElementById('footer-note').textContent =
     'PALMEIRAS · BI SPORTS ANALYTICS — ' + n + ' ' + plural(n, 'partida', 'partidas') +
     (filtros.length ? ' no recorte (' + filtros.join(' · ') + ')' : ' na temporada 2026');
@@ -172,7 +260,7 @@ function renderKPIs(){
     {l:'Saldo de gols',  v:h.saldo,         cls:h.saldo >= 0 ? 'green' : 'red', fmt:v => signed(Math.round(v))},
     {l:'Pontos',         v:h.pontos},
     {l:'Pts possíveis',  v:h.pontosPossiveis},
-    {l:'Aproveitamento', v:h.aproveitamento, cls:'gold', hl:true, fmt:v => v.toFixed(1) + '%'},
+    {l:'Aproveitamento', v:h.aproveitamento, cls:'gold', hl:true, fmt:pct},
   ];
   items.forEach(it => {
     const k = el('div', 'kpi' + (it.hl ? ' hl' : ''));
@@ -217,7 +305,7 @@ function renderCompeticoes(){
     const stats = el('div', 'comp-stats');
     [['J', c.jogos], ['V', c.vitorias], ['E', c.empates],
      ['D', c.derrotas], ['GP', c.golsMarcados], ['GC', c.golsSofridos],
-     ['Saldo', signed(c.saldo)], ['Média GP', c.mediaGP], ['Média GC', c.mediaGC]
+     ['Saldo', signed(c.saldo)], ['Média GP', num(c.mediaGP, 2)], ['Média GC', num(c.mediaGC, 2)]
     ].forEach(([l, v]) => {
       const cs = el('div', 'comp-stat');
       cs.appendChild(el('div', 'v', v));
@@ -225,6 +313,15 @@ function renderCompeticoes(){
       stats.appendChild(cs);
     });
     card.appendChild(stats);
+
+    if(c.artilheiro){
+      const a = c.artilheiro;
+      // Empate entre muitos (comum em recortes pequenos) não vira uma lista sem fim
+      const nomes = a.nomes.length > 2 ? a.nomes.slice(0, 2).join(', ') + ' +' + (a.nomes.length - 2) : a.nomes.join(' e ');
+      card.appendChild(el('div', 'comp-foot',
+        plural(a.nomes.length, 'Artilheiro', 'Artilheiros') + ' <b>' + esc(nomes) + '</b> · ' +
+        a.gols + ' ' + plural(a.gols, 'gol', 'gols')));
+    }
     grid.appendChild(card);
   });
 }
@@ -249,7 +346,7 @@ function renderCasaFora(){
     const g = el('div', 'vs-grid');
     [['V', d.vitorias], ['E', d.empates], ['D', d.derrotas],
      ['GP', d.golsMarcados], ['GC', d.golsSofridos], ['Saldo', signed(d.saldo)],
-     ['Gols/jogo', d.mediaGolsJogo], ['Sofridos/jogo', d.jogos ? +(d.golsSofridos / d.jogos).toFixed(2) : 0], ['Pontos', d.pontos]
+     ['Gols/jogo', num(d.mediaGolsJogo, 2)], ['Sofridos/jogo', num(d.jogos ? d.golsSofridos / d.jogos : 0, 2)], ['Pontos', d.pontos]
     ].forEach(([l, v]) => {
       const it = el('div', 'vs-item');
       it.appendChild(el('div', 'v', v));
@@ -267,7 +364,7 @@ function renderCasaFora(){
   const mid = el('div', 'vs-mid');
   if(temAmbos){
     mid.appendChild(el('div', 'vlabel', diff >= 0 ? 'CASA RENDE MAIS' : 'FORA RENDE MAIS'));
-    mid.appendChild(el('div', 'vval', '+' + Math.abs(diff).toFixed(1) + ' p.p.'));
+    mid.appendChild(el('div', 'vval', '+' + num(Math.abs(diff), 1) + ' p.p.'));
   } else {
     mid.appendChild(el('div', 'vlabel', 'SEM COMPARAÇÃO'));
     mid.appendChild(el('div', 'vval', '—'));
@@ -384,12 +481,19 @@ function renderConfrontos(){
 
 /* ================================================================
    GRÁFICO DE EVOLUÇÃO (SVG interativo)
-   Eixo esquerdo: pontos e saldo acumulados (contagens).
-   Eixo direito: aproveitamento móvel de 5 jogos (0–100%).
-   As 5 linhas de grade são compartilhadas pelas duas escalas, então
-   os rótulos dos dois lados sempre caem exatamente sobre elas.
+   Dois painéis empilhados sobre o mesmo eixo X (jogo a jogo):
+   em cima, pontos e saldo acumulados — duas contagens, uma escala;
+   embaixo, o aproveitamento móvel de 5 jogos, em 0–100%. Medidas de
+   escalas diferentes ficam em painéis diferentes: dois eixos Y no
+   mesmo plot sugeririam uma relação que não existe nos dados.
+   O SVG é desenhado na largura real do card (texto sempre a 10px,
+   inclusive no celular) e redesenhado quando a largura muda.
    ================================================================ */
 const STEP_LADDER = [1, 2, 2.5, 5, 10];
+const COR_RESULTADO = {'Vitória':'#39c96a', 'Empate':'#e8cd8a', 'Derrota':'#e0523f'};
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+let EVO_W = 0;   // largura do último desenho — o resize só redesenha se mudar
+let esconderEvo = () => {};   // fecha o tooltip do gráfico (toque fora, rolagem)
 
 function niceStep(raw){
   if(!(raw > 0)) return 1;
@@ -404,13 +508,12 @@ function nextNiceStep(s){
   return next ? next * pow : pow * 10;
 }
 
-/* Escolhe início, passo e número de divisões do eixo esquerdo.
-   Testa 4 e 5 divisões e fica com a que cobre os dados com a menor
-   folga — um único valor negativo não deve custar metade do gráfico.
-   Ambas as opções mantêm o eixo direito redondo (25% ou 20% por linha). */
+/* Escolhe início, passo e número de divisões do eixo. Testa de 3 a 5
+   divisões e fica com a que cobre os dados com a menor folga (no
+   empate, a de menos linhas de grade). */
 function chooseScale(min, max){
   const opts = [];
-  for(const ticks of [4, 5]){
+  for(const ticks of [3, 4, 5]){
     let step = niceStep((max - min) / ticks) || 1;
     for(let guard = 0; guard < 30; guard++){
       const lo = Math.floor(min / step) * step;
@@ -418,140 +521,196 @@ function chooseScale(min, max){
       step = nextNiceStep(step);
     }
   }
-  opts.sort((a, b) => a.span - b.span);
+  opts.sort((a, b) => a.span - b.span || a.ticks - b.ticks);
   return opts[0] || {lo: 0, step: 25, ticks: 4, span: 100};
 }
 
 function renderEvolucao(){
   const host = document.getElementById('evo-chart');
   const tip = document.getElementById('chart-tip');
+  const live = document.getElementById('evo-live');
   host.innerHTML = '';
   tip.hidden = true;
 
   const evo = DATA.evolucao;
   const jogos = DATA.todasPartidas;
-  if(evo.length < 2){ host.innerHTML = emptyMsg('São necessárias ao menos 2 partidas para desenhar a evolução.'); return; }
-
-  const W = 1180, H = 320, PL = 52, PR = 52, PT = 18, PB = 34;
-  const IW = W - PL - PR, IH = H - PT - PB;
-  const n = evo.length;
-  const xAt = i => PL + i * (IW / (n - 1));
-
-  // Escala esquerda com 4 intervalos "redondos" que cobrem pontos e saldo
-  const vals = evo.flatMap(d => [d.pontosAcum, d.saldoAcum]);
-  const rawMax = Math.max(...vals, 1);
-  const rawMin = Math.min(...vals, 0);
-  const sc = chooseScale(rawMin, rawMax);
-  const yMin = sc.lo, yMax = sc.lo + sc.span;
-  const yL = v => PT + IH * (1 - (v - yMin) / (yMax - yMin));
-  const yR = v => PT + IH * (1 - v / 100);
-
-  const path = (getter, from) => evo.map((d, i) =>
-    (i === (from || 0) ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + getter(d, i).toFixed(1)
-  ).slice(from || 0).join(' ');
-
-  const ptsPath   = path(d => yL(d.pontosAcum));
-  const saldoPath = path(d => yL(d.saldoAcum));
-  const firstAprov = evo.findIndex(d => d.aprovMovel5 !== null && d.aprovMovel5 !== undefined);
-  const aprovPath = firstAprov >= 0 ? path(d => yR(d.aprovMovel5 ?? 0), firstAprov) : '';
-  const areaPath  = ptsPath + ' L' + xAt(n - 1).toFixed(1) + ',' + yL(yMin).toFixed(1) +
-                    ' L' + xAt(0).toFixed(1) + ',' + yL(yMin).toFixed(1) + ' Z';
-
-  let grid = '', labelsL = '', labelsR = '';
-  for(let k = 0; k <= sc.ticks; k++){
-    const v = yMin + sc.step * k;
-    const y = yL(v);
-    const zero = Math.abs(v) < 1e-9;
-    grid += '<line x1="' + PL + '" y1="' + y.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + y.toFixed(1) +
-            '" stroke="' + (zero ? '#2b4c39' : '#1e3a2c') + '" stroke-width="1" opacity="' + (zero ? 0.9 : 0.45) + '"/>';
-    labelsL += '<text x="' + (PL - 10) + '" y="' + (y + 3.5).toFixed(1) + '" fill="#5f7267" font-size="10" text-anchor="end">' +
-               (Math.round(v * 10) / 10) + '</text>';
-    labelsR += '<text x="' + (W - PR + 10) + '" y="' + (y + 3.5).toFixed(1) + '" fill="#4d6a86" font-size="10">' +
-               Math.round(k * 100 / sc.ticks) + '%</text>';
+  if(evo.length < 2){
+    host.removeAttribute('tabindex');
+    host.innerHTML = emptyMsg('São necessárias ao menos 2 partidas para desenhar a evolução.');
+    return;
   }
 
-  // Marcadores de partida coloridos por resultado
-  const dots = evo.map((d, i) => {
-    const j = jogos[i];
-    const cor = !j ? '#39c96a' : j.resultado === 'Vitória' ? '#39c96a' : j.resultado === 'Empate' ? '#e8cd8a' : '#e0523f';
-    return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yL(d.pontosAcum).toFixed(1) +
-           '" r="2.6" fill="' + cor + '" opacity="0.9"/>';
-  }).join('');
+  const W = EVO_W = Math.max(300, Math.round(host.clientWidth) || 1180);
+  const compacto = W < 640;
+  const PL = compacto ? 34 : 46, PR = compacto ? 34 : 46;
+  const PT = 26, HA = compacto ? 180 : 230, GAP = 50, HB = compacto ? 76 : 92, PB = 30;
+  const H = PT + HA + GAP + HB + PB;
+  const IW = W - PL - PR;
+  const topB = PT + HA + GAP;            // topo do painel de aproveitamento
+  const fimB = topB + HB;
+  const n = evo.length;
+  const passoX = IW / (n - 1);
+  const xAt = i => PL + i * passoX;
+  // O marcador encolhe quando os jogos se apertam (celular, temporada longa)
+  const R = Math.max(2, Math.min(4, passoX * 0.3));
 
-  host.innerHTML =
-  '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Evolução de pontos, saldo e aproveitamento ao longo de ' + n + ' jogos" style="font-family:var(--font-mono)">' +
-    '<defs><linearGradient id="ptsFade" x1="0" y1="0" x2="0" y2="1">' +
-      '<stop offset="0%" stop-color="#39c96a" stop-opacity="0.28"/>' +
-      '<stop offset="100%" stop-color="#39c96a" stop-opacity="0"/>' +
-    '</linearGradient></defs>' +
-    grid + labelsL + labelsR +
-    '<path d="' + areaPath + '" fill="url(#ptsFade)" stroke="none"/>' +
-    (aprovPath ? '<path d="' + aprovPath + '" fill="none" stroke="#6f9ce6" stroke-width="1.6" stroke-dasharray="5 3" opacity="0.85" stroke-linejoin="round"/>' : '') +
-    '<path d="' + saldoPath + '" fill="none" stroke="#e8cd8a" stroke-width="2" opacity="0.9" stroke-linejoin="round" stroke-linecap="round"/>' +
-    '<path d="' + ptsPath + '" fill="none" stroke="#39c96a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>' +
-    dots +
-    '<text x="' + PL + '" y="' + (H - 10) + '" fill="#5f7267" font-size="10">Jogo 1 · ' + esc(evo[0].data) + '</text>' +
-    '<text x="' + (W - PR) + '" y="' + (H - 10) + '" fill="#5f7267" font-size="10" text-anchor="end">Jogo ' + n + ' · ' + esc(evo[n - 1].data) + '</text>' +
-    '<g id="evo-cursor" opacity="0">' +
-      '<line y1="' + PT + '" y2="' + (PT + IH) + '" stroke="#8ea095" stroke-width="1" stroke-dasharray="3 3"/>' +
-      '<circle r="5" fill="#0b1712" stroke="#39c96a" stroke-width="2"/>' +
-      '<circle r="4" fill="#0b1712" stroke="#e8cd8a" stroke-width="2"/>' +
-      '<circle r="4" fill="#0b1712" stroke="#6f9ce6" stroke-width="2"/>' +
-    '</g>' +
-    '<rect id="evo-hit" x="' + PL + '" y="' + PT + '" width="' + IW + '" height="' + IH + '" fill="transparent" style="cursor:crosshair"/>' +
-  '</svg>';
+  // Painel de cima: uma escala para pontos e saldo. Um saldo de −1 no
+  // começo da temporada não abre uma faixa negativa inteira — abaixo
+  // de 3% da amplitude, a linha só encosta um pouco sob o zero.
+  const vals = evo.flatMap(d => [d.pontosAcum, d.saldoAcum]);
+  const rawMax = Math.max(...vals, 1);
+  let rawMin = Math.min(...vals, 0);
+  if(rawMin < 0 && -rawMin < 0.03 * (rawMax - rawMin)) rawMin = 0;
+  const sc = chooseScale(rawMin, rawMax);
+  const yMin = sc.lo, yMax = sc.lo + sc.span;
+  const yA = v => PT + HA * (1 - (v - yMin) / (yMax - yMin));
+  const yB = v => topB + HB * (1 - v / 100);
+
+  const linha = pts => pts.map((p, k) => (k ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const ptsXY   = evo.map((d, i) => [xAt(i), yA(d.pontosAcum)]);
+  const saldoXY = evo.map((d, i) => [xAt(i), yA(d.saldoAcum)]);
+  const aprovXY = evo.map((d, i) => d.aprovMovel5 == null ? null : [xAt(i), yB(d.aprovMovel5)]).filter(Boolean);
+  const zeroY = yA(Math.max(0, yMin));
+  const area = linha(ptsXY) + ' L' + xAt(n - 1).toFixed(1) + ',' + zeroY.toFixed(1) +
+               ' L' + PL.toFixed(1) + ',' + zeroY.toFixed(1) + ' Z';
+
+  const hline = (y, cls) => '<line class="' + cls + '" x1="' + PL + '" x2="' + (W - PR) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/>';
+  const texto = (x, y, txt, cls, anchor) => '<text class="' + cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '"' +
+    (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + esc(txt) + '</text>';
+
+  let s = '';
+  s += texto(PL, 12, 'Pontos e saldo de gols acumulados', 'ttl');
+  for(let k = 0; k <= sc.ticks; k++){
+    const v = yMin + sc.step * k;
+    s += hline(yA(v), Math.abs(v) < 1e-9 ? 'grid zero' : 'grid');
+    s += texto(PL - 8, yA(v) + 3.5, String(Math.round(v * 10) / 10), 'ax', 'end');
+  }
+
+  const media = DATA.header.aproveitamento;
+  s += texto(PL, topB - 14, compacto ? 'Aprov. móvel · 5 jogos' : 'Aproveitamento móvel · 5 jogos', 'ttl');
+  s += texto(W - PR, topB - 14, (compacto ? 'média ' : 'média do recorte ') + pct(media), 'ttl', 'end');
+  [0, 50, 100].forEach(v => {
+    s += hline(yB(v), v === 0 ? 'grid zero' : 'grid');
+    s += texto(PL - 8, yB(v) + 3.5, v + '%', 'ax', 'end');
+  });
+  s += hline(yB(media), 'ref');
+
+  // Meses no eixo X: o eixo é por jogo, então o rótulo cai no 1º jogo de cada mês
+  let mesAnt = -1, ultimoX = -Infinity;
+  jogos.forEach((j, i) => {
+    const mes = parseBR(j.data).getMonth();
+    if(mes === mesAnt) return;
+    mesAnt = mes;
+    const x = xAt(i);
+    if(x - ultimoX < 28) return;
+    ultimoX = x;
+    s += '<line class="tick" x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + fimB + '" y2="' + (fimB + 4) + '"/>';
+    s += texto(x, fimB + 17, MESES[mes], 'ax', i === 0 ? 'start' : 'middle');
+  });
+
+  s += '<path class="area" d="' + area + '"/>';
+  s += '<path class="ln saldo" d="' + linha(saldoXY) + '"/>';
+  s += '<path class="ln pts" d="' + linha(ptsXY) + '"/>';
+  if(aprovXY.length > 1) s += '<path class="ln aprov" d="' + linha(aprovXY) + '"/>';
+  s += evo.map((d, i) => '<circle class="mk" cx="' + ptsXY[i][0].toFixed(1) + '" cy="' + ptsXY[i][1].toFixed(1) +
+    '" r="' + R.toFixed(1) + '" fill="' + (COR_RESULTADO[jogos[i].resultado] || COR_RESULTADO['Vitória']) + '"/>').join('');
+
+  // Rótulos diretos só no fim das linhas; o de saldo some se colidir com o de pontos
+  const ult = evo[n - 1];
+  const xFim = xAt(n - 1) + 8;
+  s += texto(xFim, yA(ult.pontosAcum) + 3.5, String(ult.pontosAcum), 'end-lbl strong');
+  if(Math.abs(yA(ult.pontosAcum) - yA(ult.saldoAcum)) >= 12) s += texto(xFim, yA(ult.saldoAcum) + 3.5, signed(ult.saldoAcum), 'end-lbl');
+  if(ult.aprovMovel5 != null) s += texto(xFim, yB(ult.aprovMovel5) + 3.5, Math.round(ult.aprovMovel5) + '%', 'end-lbl');
+
+  s += '<g class="cursor" opacity="0">' +
+         '<line class="cur-line" y1="' + PT + '" y2="' + fimB + '"/>' +
+         '<circle class="cur pts" r="5"/><circle class="cur saldo" r="4"/><circle class="cur aprov" r="4"/>' +
+       '</g>';
+  s += '<rect class="hit" x="' + (PL - passoX / 2).toFixed(1) + '" y="' + PT + '" width="' + (IW + passoX).toFixed(1) +
+       '" height="' + (fimB - PT) + '"/>';
+
+  host.innerHTML = '<svg class="evo" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" ' +
+    'aria-label="Evolução ao longo de ' + n + ' jogos: ' + ult.pontosAcum + ' pontos, saldo ' + signed(ult.saldoAcum) +
+    '. Os valores de cada jogo estão na tabela de partidas.">' + s + '</svg>';
 
   const svg = host.querySelector('svg');
-  const cursor = host.querySelector('#evo-cursor');
-  const cLine = cursor.children[0], cPts = cursor.children[1],
-        cSaldo = cursor.children[2], cAprov = cursor.children[3];
+  const cursor = svg.querySelector('.cursor');
+  const [cLine, cPts, cSaldo, cAprov] = cursor.children;
+  let atual = -1;
 
-  function hide(){ cursor.setAttribute('opacity', '0'); tip.hidden = true; }
+  function esconde(){ atual = -1; cursor.setAttribute('opacity', '0'); tip.hidden = true; }
+  esconderEvo = esconde;
 
-  function move(ev){
-    const box = svg.getBoundingClientRect();
-    const svgX = (ev.clientX - box.left) / box.width * W;
-    let i = Math.round((svgX - PL) / (IW / (n - 1)));
-    i = Math.max(0, Math.min(n - 1, i));
+  function resumo(i){
     const d = evo[i], j = jogos[i];
-    const x = xAt(i);
+    return 'Jogo ' + d.jogo + ', ' + d.data + ', ' + j.placar + ' contra ' + j.adversario + ', ' + j.resultado +
+      '. ' + d.pontosAcum + ' pontos acumulados, saldo ' + signed(d.saldoAcum) + '.';
+  }
 
+  // Posiciona cursor e tooltip no jogo i; (cx, cy) é o ponto da tela onde o tooltip se ancora
+  function mostra(i, cx, cy){
+    atual = i;
+    const d = evo[i], j = jogos[i], x = xAt(i);
     cursor.setAttribute('opacity', '1');
     cLine.setAttribute('x1', x); cLine.setAttribute('x2', x);
-    cPts.setAttribute('cx', x);   cPts.setAttribute('cy', yL(d.pontosAcum));
-    cSaldo.setAttribute('cx', x); cSaldo.setAttribute('cy', yL(d.saldoAcum));
-    if(d.aprovMovel5 === null || d.aprovMovel5 === undefined){
-      cAprov.setAttribute('opacity', '0');
-    } else {
-      cAprov.setAttribute('opacity', '1');
-      cAprov.setAttribute('cx', x); cAprov.setAttribute('cy', yR(d.aprovMovel5));
-    }
+    cPts.setAttribute('cx', x);   cPts.setAttribute('cy', yA(d.pontosAcum));
+    cSaldo.setAttribute('cx', x); cSaldo.setAttribute('cy', yA(d.saldoAcum));
+    const temAprov = d.aprovMovel5 != null;
+    cAprov.setAttribute('opacity', temAprov ? '1' : '0');
+    if(temAprov){ cAprov.setAttribute('cx', x); cAprov.setAttribute('cy', yB(d.aprovMovel5)); }
 
+    const row = (cor, l, v) => '<div class="tt-row"><span><i class="tt-key" style="background:' + cor + '"></i>' + l +
+      '</span><span>' + v + '</span></div>';
     tip.hidden = false;
     tip.innerHTML =
-      '<div class="tt-head"><span class="tt-opp">' + esc(j ? j.adversario : 'Jogo ' + d.jogo) + '</span>' +
+      '<div class="tt-head"><span class="tt-opp">' + esc(j.adversario) + '</span>' +
       '<span class="tt-date">' + esc(d.data) + '</span></div>' +
-      (j ? '<div class="tt-row"><span>Placar</span><span>' + esc(j.placar) + ' · ' + esc(j.resultado) + '</span></div>' : '') +
-      '<div class="tt-row"><span>Pontos acum.</span><span>' + d.pontosAcum + '</span></div>' +
-      '<div class="tt-row"><span>Saldo acum.</span><span>' + signed(d.saldoAcum) + '</span></div>' +
-      '<div class="tt-row"><span>Aprov. móvel 5</span><span>' +
-        (d.aprovMovel5 === null || d.aprovMovel5 === undefined ? '—' : pct(d.aprovMovel5)) + '</span></div>' +
-      (j ? '<div class="tt-meta">Jogo ' + d.jogo + ' de ' + n + ' · ' + esc(j.competicao) + ' · ' + esc(j.local) + '</div>'
-         : '<div class="tt-meta">Jogo ' + d.jogo + ' de ' + n + '</div>');
+      '<div class="tt-score"><span class="res-tag ' + resClass(j.resultado) + '">' + esc(j.resultado) + '</span> ' + esc(j.placar) + '</div>' +
+      (j.gols ? '<div class="tt-gols">' + esc(j.gols) + '</div>' : '') +
+      row('#39c96a', 'Pontos acum.', d.pontosAcum) +
+      row('#e8cd8a', 'Saldo acum.', signed(d.saldoAcum)) +
+      row('#6f9ce6', 'Aprov. móvel 5', temAprov ? pct(d.aprovMovel5) : '—') +
+      '<div class="tt-meta">Jogo ' + d.jogo + ' de ' + n + ' · ' + esc(j.competicao) + (j.mataMata ? ' (mata-mata)' : '') + ' · ' + esc(j.local) +
+      (j.estadio ? ' · ' + esc(j.estadio) : '') + '</div>';
 
     const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let left = ev.clientX + 16, top = ev.clientY - th / 2;
-    if(left + tw > window.innerWidth - 12) left = ev.clientX - tw - 16;
+    let left = cx + 16, top = cy - th / 2;
+    if(left + tw > window.innerWidth - 12) left = cx - tw - 16;
+    left = Math.max(12, left);
     top = Math.max(12, Math.min(window.innerHeight - th - 12, top));
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
   }
 
-  const hit = host.querySelector('#evo-hit');
-  hit.addEventListener('pointermove', move);
-  hit.addEventListener('pointerdown', move);
-  hit.addEventListener('pointerleave', hide);
-  host.addEventListener('pointerleave', hide);
+  function indiceDoPonteiro(ev){
+    const box = svg.getBoundingClientRect();
+    const x = (ev.clientX - box.left) / box.width * W;
+    return Math.max(0, Math.min(n - 1, Math.round((x - PL) / passoX)));
+  }
+  function noPonteiro(ev){ mostra(indiceDoPonteiro(ev), ev.clientX, ev.clientY); }
+
+  const hit = svg.querySelector('.hit');
+  hit.addEventListener('pointermove', noPonteiro);
+  hit.addEventListener('pointerdown', noPonteiro);
+  // No toque o pointerleave chega logo após soltar o dedo: o tooltip fica até tocar fora ou rolar
+  hit.addEventListener('pointerleave', ev => { if(ev.pointerType !== 'touch') esconde(); });
+
+  // Teclado: ← → percorrem os jogos, Home/End vão às pontas, Esc fecha.
+  // Handlers por propriedade: o host sobrevive aos re-renders e não deve acumular ouvintes.
+  host.tabIndex = 0;
+  host.onblur = esconde;
+  host.onkeydown = ev => {
+    if(ev.key === 'Escape'){ esconde(); return; }
+    const passos = {ArrowRight: 1, ArrowLeft: -1, Home: -n, End: n};
+    if(!(ev.key in passos)) return;
+    ev.preventDefault();
+    const i = atual < 0
+      ? (ev.key === 'ArrowRight' || ev.key === 'Home' ? 0 : n - 1)
+      : Math.max(0, Math.min(n - 1, atual + passos[ev.key]));
+    const box = svg.getBoundingClientRect();
+    mostra(i, box.left + xAt(i) / W * box.width, box.top + yA(evo[i].pontosAcum) / H * box.height);
+    live.textContent = resumo(i);
+  };
 }
 
 /* ================================================================
@@ -575,7 +734,21 @@ function renderMomento(){
   if(m.sequencia.length){
     badges.appendChild(el('div', 'momentum-badge ' + clsMap[m.tendencia], iconMap[m.tendencia] + ' Tendência: ' + m.tendencia));
     badges.appendChild(el('div', 'momentum-badge estavel', 'Classificação: ' + m.classificacao));
+    const sa = textoSeqAtual(m.seqAtual);
+    if(sa) badges.appendChild(el('div', 'momentum-badge ' + (sa.bom ? 'evoluindo' : 'caindo'), esc(sa.texto)));
   }
+
+  // Os mesmos 5 jogos dos chips, na mesma ordem, com adversário e placar
+  const lista = document.getElementById('last-games');
+  lista.innerHTML = '';
+  DATA.ultimos5.forEach(g => {
+    const r = el('div', 'lg-row');
+    r.appendChild(el('span', 'lg-dot ' + g.resultado[0]));
+    r.appendChild(el('span', 'lg-date', esc(ddmm(g.data))));
+    r.appendChild(el('span', 'lg-opp', esc(g.adversario) + '<small>' + esc(g.local) + ' · ' + esc(g.competicao) + '</small>'));
+    r.appendChild(el('span', 'placar', esc(g.placar)));
+    lista.appendChild(r);
+  });
 
   const trendWrap = document.getElementById('trend-badge');
   trendWrap.innerHTML = '';
@@ -585,6 +758,18 @@ function renderMomento(){
       iconMap[m.tendencia] + ' ' + m.tendencia + ' — últimos ' + nUlt + ' jogos: ' +
       m.pontos10 + '/' + (nUlt * 3) + ' pts (' + pct(m.aproveitamento10) + ')'));
   }
+}
+
+/* Sequência em curso, na forma mais forte que ela admite:
+   "4 vitórias seguidas · invicto há 5 jogos", "sem vencer há 3 jogos"… */
+function textoSeqAtual(sa){
+  if(!sa) return null;
+  if(sa.vitorias >= 2) return {bom: true, texto: sa.vitorias + ' vitórias seguidas' +
+    (sa.invicto > sa.vitorias ? ' · invicto há ' + sa.invicto + ' jogos' : '')};
+  if(sa.invicto >= 2)  return {bom: true,  texto: 'Invicto há ' + sa.invicto + ' jogos'};
+  if(sa.derrotas >= 2) return {bom: false, texto: sa.derrotas + ' derrotas seguidas'};
+  if(sa.semVencer >= 2) return {bom: false, texto: 'Sem vencer há ' + sa.semVencer + ' jogos'};
+  return null;
 }
 
 function renderSequencias(){
@@ -599,10 +784,12 @@ function renderSequencias(){
     ['Maior seq. marcando gols', s.maiorMarcando, false],
     ['Maior seq. sem sofrer gols', s.maiorSemSofrer, false],
     ['Maior seq. sofrendo gols', s.maiorSofrendo, true],
-  ].forEach(([l, v, neg]) => {
-    const c = el('div', 'seq-card' + (neg && v > 0 ? ' neg' : ''));
-    c.appendChild(el('div', 'seq-num', v));
+  ].forEach(([l, seq, neg]) => {
+    const c = el('div', 'seq-card' + (neg && seq.n > 0 ? ' neg' : ''));
+    c.appendChild(el('div', 'seq-num', seq.n));
     c.appendChild(el('div', 'seq-label', l));
+    // Período da sequência: "08/02 → 13/05" (um jogo só = uma data)
+    if(seq.n) c.appendChild(el('div', 'seq-period', esc(seq.n > 1 ? ddmm(seq.de) + ' → ' + ddmm(seq.ate) : ddmm(seq.de))));
     grid.appendChild(c);
   });
 }
@@ -621,29 +808,43 @@ function normalizePlayers(list){
     .sort((a, b) => b.valor - a.valor || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
+const ELENCO_TOP = 10;
+
 function renderElenco(){
   const grid = document.getElementById('elenco-grid');
   grid.innerHTML = '';
+  const recorte = activeFilters().length > 0;
   const blocos = [
-    {titulo:'Artilharia', unidade:'gols', barra:'gols',   dados: normalizePlayers(PLAYERS.artilharia)},
-    {titulo:'Assistências', unidade:'assistências', barra:'assist', dados: normalizePlayers(PLAYERS.assistencias)},
+    {titulo:'Artilharia', unidade:'gols', barra:'gols',
+     dados: normalizePlayers(DATA.artilharia), escopo: 'No recorte', contra: DATA.golsContra,
+     vazio: 'Nenhum gol no recorte atual.'},
+    {titulo:'Assistências', unidade:'assistências', barra:'assist',
+     dados: normalizePlayers(BASE_ASSISTENCIAS), escopo: 'Temporada inteira', contra: 0,
+     vazio: 'Sem assistências registradas.'},
   ];
 
   blocos.forEach(b => {
     const card = el('div', 'card');
-    card.appendChild(el('div', 'comp-name', b.titulo));
+    const head = el('div', 'elenco-head');
+    head.appendChild(el('div', 'comp-name', b.titulo));
+    // O escopo só precisa ser dito quando há filtro: sem filtro, tudo é a temporada
+    if(recorte) head.appendChild(el('span', 'scope-tag' + (b.escopo === 'No recorte' ? ' on' : ''), b.escopo));
+    card.appendChild(head);
     if(!b.dados.length){
-      card.appendChild(el('div', null, emptyMsg('A planilha carregada não traz uma aba de ' + b.titulo.toLowerCase() + '.')));
+      card.appendChild(el('div', null, emptyMsg(b.vazio)));
       grid.appendChild(card);
       return;
     }
     const max = b.dados[0].valor;
     const total = b.dados.reduce((s, p) => s + p.valor, 0);
+    const aberto = !!UI.elencoAberto[b.titulo];
     const lista = el('div', null, '');
     lista.style.marginTop = '14px';
-    b.dados.slice(0, 10).forEach((p, i) => {
-      const row = el('div', 'player-row' + (i === 0 ? ' top' : ''));
-      row.appendChild(el('div', 'pos', i + 1));
+    b.dados.slice(0, aberto ? b.dados.length : ELENCO_TOP).forEach((p, _, arr) => {
+      // Empatados dividem a posição: 1, 2, 3, 3, 5…
+      const pos = arr.findIndex(q => q.valor === p.valor) + 1;
+      const row = el('div', 'player-row' + (pos === 1 ? ' top' : ''));
+      row.appendChild(el('div', 'pos', pos));
       const mid = el('div');
       mid.appendChild(el('div', 'pname', esc(p.nome)));
       const bar = el('div', 'pbar');
@@ -660,7 +861,15 @@ function renderElenco(){
 
     const foot = el('div', 'elenco-foot');
     foot.appendChild(el('span', null, b.dados.length + ' ' + plural(b.dados.length, 'jogador', 'jogadores') + ' com ' + b.unidade));
-    foot.appendChild(el('span', null, 'Total: ' + total));
+    if(b.dados.length > ELENCO_TOP){
+      const mais = el('button', 'elenco-more', aberto ? 'Ver só o top ' + ELENCO_TOP : 'Ver todos (' + b.dados.length + ')');
+      mais.type = 'button';
+      mais.setAttribute('aria-expanded', String(aberto));
+      mais.onclick = () => { UI.elencoAberto[b.titulo] = !aberto; renderElenco(); };
+      foot.appendChild(mais);
+    }
+    foot.appendChild(el('span', null, 'Total: ' + total +
+      (b.contra ? ' + ' + b.contra + ' ' + plural(b.contra, 'gol contra', 'gols contra') : '')));
     card.appendChild(foot);
     grid.appendChild(card);
   });
@@ -687,15 +896,17 @@ function renderDistribuicao(){
     const fill = el('div', 'dist-fill');
     fill.style.width = '0%';
     track.appendChild(fill);
-    // Rótulo dentro da barra quando cabe, fora quando não cabe — assim
-    // barras curtas continuam legíveis sem precisar distorcer a escala.
-    const dentro = w > 26;
-    const label = el('div', 'dist-val ' + (dentro ? 'inside' : 'outside'),
+    const label = el('div', 'dist-val',
       v + ' ' + plural(v, 'jogo', 'jogos') + ' · ' + (v / total * 100).toFixed(0) + '%');
-    label.style.left = dentro ? '10px' : 'calc(' + w + '% + 10px)';
     track.appendChild(label);
     row.appendChild(track);
     wrap.appendChild(row);
+    // Rótulo dentro da barra só quando cabe nela com folga — medido em px,
+    // não em %, porque no celular a mesma barra é bem mais curta. Senão
+    // vai para fora, depois do fim da barra, sem distorcer a escala.
+    const dentro = label.offsetWidth + 20 <= track.clientWidth * w / 100;
+    label.classList.add(dentro ? 'inside' : 'outside');
+    label.style.left = dentro ? '10px' : 'calc(' + w + '% + 10px)';
     requestAnimationFrame(() => { fill.style.width = w + '%'; });
   });
 }
@@ -749,7 +960,7 @@ function renderDonut(){
     dot.style.background = colors[d.resultado];
     item.appendChild(dot);
     item.appendChild(el('span', null, d.resultado + (d.qtd === 1 ? '' : 's')));
-    item.appendChild(el('span', 'val', d.qtd + ' (' + d.pct.toFixed(1) + '%)'));
+    item.appendChild(el('span', 'val', d.qtd + ' (' + pct(d.pct) + ')'));
     legend.appendChild(item);
   });
 
@@ -767,6 +978,36 @@ function renderDonut(){
   });
 }
 
+/* V/E/D de cada torneio e de cada mando, em barras 100% empilhadas ao
+   lado do donut: o mesmo total, aberto. Os números ficam escritos ao
+   lado — a barra não é a única forma de ler o valor. */
+function renderResultadosAbertos(){
+  const wrap = document.getElementById('res-breakdown');
+  wrap.innerHTML = '';
+  if(!DATA.header.jogos) return;
+  wrap.appendChild(el('div', 'bd-title', 'Resultados por torneio e mando'));
+  const linha = (nome, d) => {
+    if(!d.jogos) return;
+    const row = el('div', 'bd-row');
+    row.appendChild(el('div', 'bd-name', esc(nome)));
+    const bar = el('div', 'bd-bar');
+    [['V', d.vitorias, 'vitória'], ['E', d.empates, 'empate'], ['D', d.derrotas, 'derrota']].forEach(([k, q, rotulo]) => {
+      if(!q) return;
+      const seg = el('span', 'bd-seg ' + k);
+      seg.style.flexGrow = q;
+      seg.title = nome + ': ' + q + ' ' + rotulo + (q === 1 ? '' : 's') + ' (' + pct(q / d.jogos * 100) + ')';
+      bar.appendChild(seg);
+    });
+    row.appendChild(bar);
+    row.appendChild(el('div', 'bd-val', d.vitorias + 'V ' + d.empates + 'E ' + d.derrotas + 'D'));
+    wrap.appendChild(row);
+  };
+  DATA.porCompeticao.forEach(c => linha(c.competicao, c));
+  wrap.appendChild(el('div', 'bd-sep'));
+  linha('Em casa', DATA.casaXFora.casa);
+  linha('Fora de casa', DATA.casaXFora.fora);
+}
+
 /* ================================================================
    TABELA DE PARTIDAS
    ================================================================ */
@@ -776,14 +1017,16 @@ const GAME_COLS = [
   {key:'competicao', label:'Competição'},
   {key:'local',      label:'Local'},
   {key:'placar',     label:'Placar'},
+  {key:'gols',       label:'Gols', semOrdem:true},
   {key:'pts',        label:'Pts', num:true},
   {key:'resultado',  label:'Resultado'},
 ];
 
 function gameRows(){
   const pontosMap = {'Vitória':3, 'Empate':1, 'Derrota':0};
+  // Mata-mata não vale pontos: pts fica null e a célula mostra "—"
   return DATA.todasPartidas.map((g, i) => ({
-    ...g, idx: i, dateObj: parseBR(g.data), pts: pontosMap[g.resultado] ?? 0,
+    ...g, idx: i, dateObj: parseBR(g.data), pts: g.mataMata ? null : pontosMap[g.resultado] ?? 0,
   }));
 }
 
@@ -806,17 +1049,17 @@ function renderJogos(){
   let rows = gameRows();
   if(UI.gamesScope !== 'all') rows = rows.slice(-UI.gamesScope);
 
-  const q = UI.gamesQuery.trim().toLowerCase();
+  const busca = UI.gamesQuery.trim();
+  const q = fold(busca);
   if(q){
-    rows = rows.filter(r =>
-      r.adversario.toLowerCase().includes(q) ||
-      r.competicao.toLowerCase().includes(q) ||
-      r.resultado.toLowerCase().includes(q) ||
-      r.placar.includes(q));
+    rows = rows.filter(r => [r.adversario, r.competicao, r.resultado, r.placar, r.estadio, r.gols, r.mataMata ? 'mata-mata' : '']
+      .some(v => fold(v).includes(q)));
   }
 
   const {key, dir} = UI.gamesSort;
   rows.sort((a, b) => {
+    // Ordenando por Pts, jogo sem pontos (mata-mata) fica no fim nos dois sentidos
+    if(key === 'pts' && (a.pts == null) !== (b.pts == null)) return a.pts == null ? 1 : -1;
     let cmp;
     if(key === 'data') cmp = a.dateObj - b.dateObj || a.idx - b.idx;
     else if(typeof a[key] === 'number') cmp = a[key] - b[key];
@@ -833,6 +1076,7 @@ function renderJogos(){
   const thead = el('thead'), tr = el('tr');
   GAME_COLS.forEach(col => {
     const sorted = key === col.key;
+    if(col.semOrdem){ tr.appendChild(el('th', null, col.label)); return; }
     const th = el('th', [col.num ? 'num' : '', 'sortable', sorted ? 'sorted' : '', sorted && dir === 'asc' ? 'asc' : ''].filter(Boolean).join(' '), col.label);
     th.onclick = () => {
       UI.gamesSort = {key: col.key, dir: sorted && dir === 'desc' ? 'asc' : 'desc'};
@@ -845,7 +1089,7 @@ function renderJogos(){
   const tbody = el('tbody');
   if(!rows.length){
     const r = el('tr', 'empty-row');
-    const td = el('td', null, q ? 'Nenhuma partida encontrada para “' + esc(q) + '”.' : 'Sem partidas no recorte.');
+    const td = el('td', null, q ? 'Nenhuma partida encontrada para “' + esc(busca) + '”.' : 'Sem partidas no recorte.');
     td.colSpan = GAME_COLS.length;
     r.appendChild(td); tbody.appendChild(r);
   }
@@ -853,10 +1097,13 @@ function renderJogos(){
     const row = el('tr');
     row.appendChild(el('td', null, esc(g.data)));
     row.appendChild(el('td', null, '<b style="color:var(--white)">' + esc(g.adversario) + '</b>'));
-    row.appendChild(el('td', null, esc(g.competicao)));
-    row.appendChild(el('td', null, '<span class="loc-tag ' + (g.local === 'Casa' ? 'casa' : '') + '">' + esc(g.local) + '</span>'));
+    row.appendChild(el('td', null, esc(g.competicao) + (g.mataMata ? '<span class="loc-std">mata-mata</span>' : '')));
+    row.appendChild(el('td', null, '<span class="loc-tag ' + (g.local === 'Casa' ? 'casa' : '') + '">' + esc(g.local) + '</span>' +
+      (g.estadio ? '<span class="loc-std">' + esc(g.estadio) + '</span>' : '')));
     row.appendChild(el('td', null, '<span class="placar">' + esc(g.placar) + '</span>'));
-    row.appendChild(el('td', 'num', g.pts));
+    row.appendChild(el('td', 'gols-cell', g.gols ? esc(g.gols) : '<span class="muted">—</span>'));
+    row.appendChild(el('td', 'num', g.pts == null
+      ? '<span class="muted" title="Mata-mata: jogo eliminatório não vale pontos">—</span>' : g.pts));
     row.appendChild(el('td', null, '<span class="res-tag ' + resClass(g.resultado) + '">' + esc(g.resultado) + '</span>'));
     tbody.appendChild(row);
   });
@@ -879,37 +1126,17 @@ function renderDashboard(){
   renderDistribuicao();
   renderHighlights();
   renderDonut();
+  renderResultadosAbertos();
   renderJogos();
 }
 
 /* ================================================================
-   LEITURA DE EXCEL (SheetJS) — recalcula tudo a partir de um .xlsx
-   Espera uma aba "Fato_Partidas" com as colunas:
-   ID_Partida, Data, Adversario, Competicao, Local, Placar,
-   Gols_Palmeiras, Gols_Adversario, Resultado.
-   Abas opcionais "Artilharia" e "Assistencias" alimentam o elenco.
-   Local em Arena Barueri / Allianz Parque / Nubank Parque = jogo em casa.
+   CÁLCULO — buildDataFromRows recalcula tudo a partir das linhas
+   (base inteira ou recorte de filtro).
+   Estádio em Arena Barueri / Allianz Parque / Nubank Parque = jogo em casa.
    ================================================================ */
 
 const CASA_LOCAIS = new Set(['Arena Barueri', 'Allianz Parque', 'Nubank Parque']);
-
-function excelDateToJsDate(serial){
-  if(serial instanceof Date) return serial;
-  if(typeof serial === 'string'){
-    const s = serial.trim();
-    // dd/mm/yyyy vem primeiro: new Date('10/01/2026') seria lido como
-    // 10 de janeiro no padrão americano (mês/dia), invertendo a data.
-    const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if(br) return new Date(+br[3], +br[2] - 1, +br[1]);
-    const iso = new Date(s);
-    return isNaN(iso) ? null : iso;
-  }
-  if(typeof serial === 'number'){
-    const utcDays = Math.floor(serial - 25569);
-    return new Date(utcDays * 86400 * 1000);
-  }
-  return null;
-}
 
 function fmtDateBR(d){
   const dd = String(d.getDate()).padStart(2, '0');
@@ -917,12 +1144,66 @@ function fmtDateBR(d){
   return dd + '/' + mm + '/' + d.getFullYear();
 }
 
-function maxSeq(arr, cond){
-  let best = 0, cur = 0;
-  for(const v of arr){
-    if(cond(v)){ cur++; best = Math.max(best, cur); } else { cur = 0; }
-  }
+/* Maior sequência de jogos em que cond(jogo) vale, com o período.
+   No empate de tamanho fica a mais recente. */
+function maxSeq(rows, cond){
+  let best = {n: 0, de: null, ate: null}, cur = 0;
+  rows.forEach((r, i) => {
+    if(!cond(r)){ cur = 0; return; }
+    cur++;
+    if(cur >= best.n) best = {n: cur, de: fmtDateBR(rows[i - cur + 1].DataObj), ate: fmtDateBR(r.DataObj)};
+  });
   return best;
+}
+
+/* Tamanho da sequência que termina no último jogo */
+function seqFinal(rows, cond){
+  let n = 0;
+  for(let i = rows.length - 1; i >= 0 && cond(rows[i]); i--) n++;
+  return n;
+}
+
+/* "V.Roque (2), Andreas e Sosa" → [{nome:'Vitor Roque', gols:2, contra:false}, …].
+   "(c)" ou "(contra)" marca gol contra a favor. Vazio ou traço = sem gols. */
+function parseAutores(texto){
+  const s = String(texto ?? '').trim();
+  if(!s || /^[-–—]$/.test(s)) return [];
+  return s.split(/\s*,\s*|\s+e\s+/).filter(Boolean).map(parte => {
+    const m = parte.match(/^(.+?)\s*(?:\((\d+|c|contra)\))?$/i);
+    const nome = m[1].trim();
+    const extra = (m[2] || '').toLowerCase();
+    return {nome: APELIDOS[nome] || nome, gols: /^\d+$/.test(extra) ? +extra : 1, contra: extra === 'c' || extra === 'contra'};
+  });
+}
+
+/* Forma de exibição (nomes completos) — e que parseAutores lê de volta */
+function formatAutores(lista){
+  return lista.map(a => a.nome + (a.contra ? ' (contra)' : a.gols > 1 ? ' (' + a.gols + ')' : '')).join(', ');
+}
+
+/* Marca os jogos de mata-mata (ver JOGOS_ANTES_DO_MATA_MATA). Recebe a
+   base inteira em ordem cronológica: é a posição do jogo dentro da
+   competição que diz a fase, e um recorte de filtro mudaria essa conta. */
+function marcarMataMata(rows){
+  const vistos = {};
+  rows.forEach(r => {
+    const n = vistos[r.Competicao] = (vistos[r.Competicao] || 0) + 1;
+    const antes = JOGOS_ANTES_DO_MATA_MATA[r.Competicao];
+    r.MataMata = antes !== undefined && n > antes;
+  });
+  return rows;
+}
+
+/* Artilheiro(s) de um conjunto de jogos: {nomes, gols} ou null */
+function artilheiroDe(rows){
+  const mapa = {};
+  rows.forEach(r => parseAutores(r.Autores).forEach(a => {
+    if(!a.contra) mapa[a.nome] = (mapa[a.nome] || 0) + a.gols;
+  }));
+  const max = Math.max(0, ...Object.values(mapa));
+  if(!max) return null;
+  const nomes = Object.keys(mapa).filter(k => mapa[k] === max).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return {nomes, gols: max};
 }
 
 function emptyData(){
@@ -932,12 +1213,13 @@ function emptyData(){
     header: {...zero}, porCompeticao: [], melhorCompeticao: null, piorCompeticao: null,
     casaXFora: {casa: {...zero}, fora: {...zero}},
     maisEnfrentados: [], melhorAproveitamento: [], maiorDificuldade: [], maisVencidos: [],
-    sequencias: {maiorVitorias:0, maiorSemPerder:0, maiorDerrotas:0, maiorSemVencer:0,
-      maiorMarcando:0, maiorSemSofrer:0, maiorSofrendo:0},
+    sequencias: Object.fromEntries(['maiorVitorias', 'maiorSemPerder', 'maiorDerrotas', 'maiorSemVencer',
+      'maiorMarcando', 'maiorSemSofrer', 'maiorSofrendo'].map(k => [k, {n: 0, de: null, ate: null}])),
     ultimos5: [], ultimos10: [],
     momentoAtual: {sequencia: [], pontos:0, aproveitamento:0, classificacao:'—',
-      tendencia:'Estável', pontos10:0, aproveitamento10:0},
+      tendencia:'Estável', pontos10:0, aproveitamento10:0, seqAtual: null},
     goleadaAplicada: null, goleadaSofrida: null,
+    artilharia: [], golsContra: 0,
     cleanSheets: 0, jogosSemMarcar: 0, maiorGP_umJogo: 0, maiorGC_umJogo: 0,
     distribuicaoGolsMarcados: {}, evolucao: [],
     resultadoMatrix: [{resultado:'Vitória', qtd:0, pct:0}, {resultado:'Empate', qtd:0, pct:0}, {resultado:'Derrota', qtd:0, pct:0}],
@@ -983,7 +1265,7 @@ function buildDataFromRows(rows){
 
   const compMap = agrupa('Competicao');
   const porCompeticao = Object.keys(compMap)
-    .map(comp => ({competicao: comp, ...conta(compMap[comp])}))
+    .map(comp => ({competicao: comp, ...conta(compMap[comp]), artilheiro: artilheiroDe(compMap[comp])}))
     .sort((a, b) => b.aproveitamento - a.aproveitamento);
 
   const casaXFora = {
@@ -1004,21 +1286,23 @@ function buildDataFromRows(rows){
   const maiorDificuldade = [...baseAprov].sort((a, b) => a.aproveitamento - b.aproveitamento || b.jogos - a.jogos).slice(0, 6);
   const maisVencidos = [...advRows].sort((a, b) => b.vitorias - a.vitorias || b.aproveitamento - a.aproveitamento).slice(0, 6);
 
-  const resSeq = rows.map(r => r.Resultado);
+  const vence = r => r.Resultado === 'Vitória', perde = r => r.Resultado === 'Derrota';
   const sequencias = {
-    maiorVitorias:  maxSeq(resSeq, x => x === 'Vitória'),
-    maiorSemPerder: maxSeq(resSeq, x => x !== 'Derrota'),
-    maiorDerrotas:  maxSeq(resSeq, x => x === 'Derrota'),
-    maiorSemVencer: maxSeq(resSeq, x => x !== 'Vitória'),
-    maiorMarcando:  maxSeq(rows.map(r => r.Gols_Palmeiras), x => x > 0),
-    maiorSemSofrer: maxSeq(rows.map(r => r.Gols_Adversario), x => x === 0),
-    maiorSofrendo:  maxSeq(rows.map(r => r.Gols_Adversario), x => x > 0),
+    maiorVitorias:  maxSeq(rows, vence),
+    maiorSemPerder: maxSeq(rows, r => !perde(r)),
+    maiorDerrotas:  maxSeq(rows, perde),
+    maiorSemVencer: maxSeq(rows, r => !vence(r)),
+    maiorMarcando:  maxSeq(rows, r => r.Gols_Palmeiras > 0),
+    maiorSemSofrer: maxSeq(rows, r => r.Gols_Adversario === 0),
+    maiorSofrendo:  maxSeq(rows, r => r.Gols_Adversario > 0),
   };
 
   const jogosLista = d => d.map(r => ({
     data: fmtDateBR(r.DataObj), adversario: r.Adversario, competicao: r.Competicao,
-    local: r.Mandante ? 'Casa' : 'Fora', placar: r.Placar, resultado: r.Resultado,
+    local: r.Mandante ? 'Casa' : 'Fora', estadio: r.Local || '', placar: r.Placar, resultado: r.Resultado,
+    mataMata: !!r.MataMata,
     gp: r.Gols_Palmeiras, gc: r.Gols_Adversario,
+    gols: formatAutores(parseAutores(r.Autores)),
   }));
 
   const ult5 = rows.slice(-5), ult10 = rows.slice(-10);
@@ -1036,12 +1320,28 @@ function buildDataFromRows(rows){
     sequencia: ult5.map(r => r.Resultado[0]),
     pontos: pts5, aproveitamento: aprov5, classificacao, tendencia,
     pontos10: pts10, aproveitamento10: aprov10,
+    seqAtual: {
+      vitorias: seqFinal(rows, vence), invicto: seqFinal(rows, r => !perde(r)),
+      derrotas: seqFinal(rows, perde), semVencer: seqFinal(rows, r => !vence(r)),
+    },
   };
 
-  // Goleadas: maior saldo desempatado pelo maior número de gols marcados
+  // Goleadas: maior saldo desempatado pelo maior número de gols marcados.
+  // Só há goleada aplicada com saldo positivo (e sofrida com negativo) —
+  // num recorte só de derrotas, a "maior vitória" não pode ser uma derrota.
   const bySaldo = [...rows].sort((a, b) => b.Saldo - a.Saldo || b.Gols_Palmeiras - a.Gols_Palmeiras);
   const goleadaObj = r => r && {adversario: r.Adversario, placar: r.Placar,
     data: fmtDateBR(r.DataObj), competicao: r.Competicao};
+  const maiorVitoria = bySaldo[0], maiorDerrota = bySaldo[bySaldo.length - 1];
+
+  // Artilharia do recorte; gols contra a favor ficam num total à parte
+  const golsPorJogador = {};
+  let golsContra = 0;
+  rows.forEach(r => parseAutores(r.Autores).forEach(a => {
+    if(a.contra) golsContra += a.gols;
+    else golsPorJogador[a.nome] = (golsPorJogador[a.nome] || 0) + a.gols;
+  }));
+  const artilharia = Object.keys(golsPorJogador).map(nome => ({nome, valor: golsPorJogador[nome]}));
 
   const distribuicaoGolsMarcados = {};
   rows.forEach(r => {
@@ -1074,8 +1374,9 @@ function buildDataFromRows(rows){
     piorCompeticao: porCompeticao[porCompeticao.length - 1]?.competicao,
     casaXFora, maisEnfrentados, melhorAproveitamento, maiorDificuldade, maisVencidos,
     sequencias, ultimos5: jogosLista(ult5), ultimos10: jogosLista(ult10), momentoAtual,
-    goleadaAplicada: goleadaObj(bySaldo[0]),
-    goleadaSofrida: goleadaObj(bySaldo[bySaldo.length - 1]),
+    goleadaAplicada: maiorVitoria.Saldo > 0 ? goleadaObj(maiorVitoria) : null,
+    goleadaSofrida: maiorDerrota.Saldo < 0 ? goleadaObj(maiorDerrota) : null,
+    artilharia, golsContra,
     cleanSheets: rows.filter(r => r.Gols_Adversario === 0).length,
     jogosSemMarcar: rows.filter(r => r.Gols_Palmeiras === 0).length,
     maiorGP_umJogo: Math.max(...rows.map(r => r.Gols_Palmeiras)),
@@ -1087,80 +1388,10 @@ function buildDataFromRows(rows){
   };
 }
 
-/* Lê uma aba opcional de jogadores (artilharia / assistências) */
-function readPlayerSheet(wb, needle){
-  const name = wb.SheetNames.find(s => s.toLowerCase().includes(needle));
-  if(!name) return [];
-  try {
-    return normalizePlayers(XLSX.utils.sheet_to_json(wb.Sheets[name], {defval: null}));
-  } catch(e){
-    console.warn('Não foi possível ler a aba', name, e);
-    return [];
-  }
-}
-
 function setStatus(msg, kind){
   const s = document.getElementById('upload-status');
   s.textContent = msg;
   s.className = 'upload-status' + (kind ? ' ' + kind : '');
-}
-
-function processExcelFile(file){
-  setStatus('Lendo planilha…', 'loading');
-
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
-      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('fato')) || wb.SheetNames[0];
-      const json = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {defval:null});
-      if(!json.length) throw new Error('Planilha vazia ou aba não encontrada.');
-
-      // Aceita "Local" (nome do estádio) ou "Local_Estadio" (modelo Power BI)
-      const normalized = json.map(r => {
-        if(!('Local' in r) && ('Local_Estadio' in r)){
-          const {Local_Estadio, ...rest} = r;
-          return {...rest, Local: Local_Estadio};
-        }
-        return r;
-      });
-
-      const required = ['Data','Adversario','Competicao','Local','Gols_Palmeiras','Gols_Adversario','Resultado'];
-      const missing = required.filter(c => !(c in normalized[0]));
-      if(missing.length) throw new Error('Colunas ausentes: ' + missing.join(', '));
-
-      const rows = normalized.map(r => ({
-        ...r,
-        DataObj: excelDateToJsDate(r.Data),
-        Placar: r.Placar || (r.Gols_Palmeiras + 'x' + r.Gols_Adversario),
-      })).filter(r => r.DataObj);
-      if(!rows.length) throw new Error('Nenhuma linha com data válida.');
-      rows.sort((a, b) => a.DataObj - b.DataObj);
-
-      // Cada planilha traz o próprio elenco — não herda o da anterior
-      PLAYERS = {
-        artilharia: readPlayerSheet(wb, 'artilharia'),
-        assistencias: readPlayerSheet(wb, 'assist'),
-      };
-
-      RAW_ROWS = rows;
-      saveToStorage(rows, PLAYERS);
-      DATA = buildDataFromRows(rows.map(r => ({...r})));
-      resetFilterUI();
-      renderDashboard();
-
-      const extras = [];
-      if(PLAYERS.artilharia.length) extras.push('artilharia');
-      if(PLAYERS.assistencias.length) extras.push('assistências');
-      setStatus('✓ ' + rows.length + ' partidas carregadas' +
-        (extras.length ? ' · ' + extras.join(' e ') + ' ' + plural(extras.length, 'lida', 'lidas') : ''), 'success');
-    } catch(err){
-      console.error(err);
-      setStatus('✗ Erro ao ler o arquivo: ' + err.message, 'error');
-    }
-  };
-  reader.onerror = function(){ setStatus('✗ Não foi possível ler o arquivo.', 'error'); };
-  reader.readAsArrayBuffer(file);
 }
 
 /* ================================================================
@@ -1168,23 +1399,28 @@ function processExcelFile(file){
    RAW_ROWS guarda a base completa; os filtros recortam essa base e
    DATA é recalculado inteiro em cima do recorte.
    ================================================================ */
-function rowsFromTodasPartidas(lista){
-  return lista.map((p, i) => ({
-    ID_Partida: i + 1,
-    Data: p.data,
-    DataObj: parseBR(p.data),
-    Adversario: p.adversario,
-    Competicao: p.competicao,
-    Local: p.local === 'Casa' ? 'Allianz Parque' : '(fora)',
-    Placar: p.placar,
-    Gols_Palmeiras: p.gp,
-    Gols_Adversario: p.gc,
-    Resultado: p.resultado,
+/* Converte BASE_PARTIDAS nas linhas que buildDataFromRows recebe: um
+   objeto por jogo, com placar, resultado e mata-mata já resolvidos. */
+function rowsFromBase(base){
+  return marcarMataMata(base.map(([data, adversario, competicao, local, gp, gc, autores, placar], i) => {
+    const soma = parseAutores(autores).reduce((s, a) => s + a.gols, 0);
+    if(soma !== gp) console.warn('BASE_PARTIDAS: autores somam ' + soma + ' gol(s), mas o placar diz ' + gp +
+      ' — ' + data + ' vs ' + adversario);
+    return {
+      ID_Partida: i + 1,
+      Data: data,
+      DataObj: parseBR(data),
+      Adversario: adversario,
+      Competicao: competicao,
+      Local: local,
+      Placar: placar || gp + 'x' + gc,
+      Gols_Palmeiras: gp,
+      Gols_Adversario: gc,
+      Resultado: gp > gc ? 'Vitória' : gp === gc ? 'Empate' : 'Derrota',
+      Autores: autores || '',
+    };
   }));
 }
-
-const BASE_PARTIDAS = DATA.todasPartidas;
-const BASE_PLAYERS = {artilharia: DATA.artilharia || [], assistencias: DATA.assistencias || []};
 
 let RAW_ROWS = [];
 
@@ -1197,12 +1433,6 @@ function populateFilterOptions(){
     '<option value="">Competição: Todas</option>' + competicoes.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
   document.getElementById('f-adversario').innerHTML =
     '<option value="">Adversário: Todos</option>' + adversarios.map(a => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('');
-}
-
-function resetFilterUI(){
-  populateFilterOptions();
-  document.getElementById('f-mandante').value = '';
-  document.getElementById('f-resultado').value = '';
 }
 
 function filteredRows(){
@@ -1244,11 +1474,12 @@ function applyFilters(){
 function exportCSV(){
   const rows = DATA.todasPartidas;
   if(!rows.length){ setStatus('Nada para exportar no recorte atual.', 'error'); return; }
-  const cols = ['Data','Adversario','Competicao','Local','Placar','Gols_Palmeiras','Gols_Adversario','Resultado'];
+  const cols = ['Data','Adversario','Competicao','Estadio','Mando','Placar','Gols_Palmeiras','Gols_Adversario','Resultado','Autores'];
   const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   // Ponto-e-vírgula + BOM: é o que o Excel em pt-BR abre sem etapa de importação
   const csv = [cols.join(';')].concat(
-    rows.map(g => [g.data, g.adversario, g.competicao, g.local, g.placar, g.gp, g.gc, g.resultado].map(cell).join(';'))
+    rows.map(g => [g.data, g.adversario, g.competicao, g.estadio, g.local, g.placar, g.gp, g.gc, g.resultado, g.gols]
+      .map(cell).join(';'))
   ).join('\r\n');
 
   const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
@@ -1288,44 +1519,17 @@ function initScrollSpy(){
    INICIALIZAÇÃO
    ================================================================ */
 (function init(){
-  const stored = loadFromStorage();
-  if(stored && stored.rows.length){
-    stored.rows.sort((a, b) => a.DataObj - b.DataObj);
-    RAW_ROWS = stored.rows;
-    PLAYERS = stored.players || {artilharia: [], assistencias: []};
-    setStatus('↺ ' + stored.rows.length + ' partidas restauradas do armazenamento local', 'success');
-  } else {
-    RAW_ROWS = rowsFromTodasPartidas(BASE_PARTIDAS);
-    PLAYERS = {...BASE_PLAYERS};
-  }
-
+  RAW_ROWS = rowsFromBase(BASE_PARTIDAS);
   populateFilterOptions();
   DATA = buildDataFromRows(RAW_ROWS.map(r => ({...r})));
   renderDashboard();
   initScrollSpy();
-
-  document.getElementById('excel-upload').addEventListener('change', function(e){
-    const file = e.target.files[0];
-    if(file) processExcelFile(file);
-    e.target.value = '';   // permite recarregar o mesmo arquivo
-  });
 
   FILTER_IDS.forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 
   document.getElementById('f-clear').addEventListener('click', function(){
     FILTER_IDS.forEach(id => { document.getElementById(id).value = ''; });
     applyFilters();
-  });
-
-  document.getElementById('f-clear-storage').addEventListener('click', function(){
-    clearStorage();
-    RAW_ROWS = rowsFromTodasPartidas(BASE_PARTIDAS);
-    PLAYERS = {...BASE_PLAYERS};
-    FILTER_IDS.forEach(id => { document.getElementById(id).value = ''; });
-    resetFilterUI();
-    DATA = buildDataFromRows(RAW_ROWS.map(r => ({...r})));
-    renderDashboard();
-    setStatus('↺ Base original restaurada (' + RAW_ROWS.length + ' partidas).', 'success');
   });
 
   document.getElementById('btn-export').addEventListener('click', exportCSV);
@@ -1335,5 +1539,20 @@ function initScrollSpy(){
     clearTimeout(searchTimer);
     const v = e.target.value;
     searchTimer = setTimeout(() => { UI.gamesQuery = v; renderJogos(); }, 120);
+  });
+
+  // O gráfico é desenhado na largura do card: redesenha quando ela muda
+  let resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if(Math.abs(document.getElementById('evo-chart').clientWidth - EVO_W) > 4) renderEvolucao();
+      renderDistribuicao();   // rótulo dentro/fora da barra depende da largura
+    }, 150);
+  });
+  // O tooltip é fixo na tela: some ao rolar ou ao tocar fora do gráfico
+  window.addEventListener('scroll', () => esconderEvo(), {passive: true});
+  document.addEventListener('pointerdown', e => {
+    if(!e.target.closest('#evo-chart')) esconderEvo();
   });
 })();

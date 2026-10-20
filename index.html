@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Palmeiras · BI Sports Analytics 2026</title>
 <meta name="description" content="Painel de performance do Palmeiras na temporada 2026 — aproveitamento, evolução, adversários, artilharia e assistências.">
+<meta name="theme-color" content="#07100c">
+<link rel="icon" type="image/png" href="escudo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script src="xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -17,7 +18,7 @@
 
 <header class="topbar">
   <div class="brandmark">
-    <div class="crest"><img src="SE_Palmeiras_2025_crest.png" alt="Escudo do Palmeiras"></div>
+    <div class="crest"><img src="escudo.png" alt="Escudo do Palmeiras" width="38" height="44"></div>
     <div class="brand-text">
       <span class="name">SOCIEDADE ESPORTIVA PALMEIRAS</span>
       <span class="sub">Sports Analytics · BI Dashboard</span>
@@ -27,10 +28,6 @@
     <div class="pill"><span class="dot"></span> <span id="pill-partidas">—</span></div>
     <div class="pill hide-sm">Temporada 2026</div>
     <button id="btn-export" class="ghost-btn" type="button" title="Baixar as partidas do recorte atual em CSV">⤓ CSV</button>
-    <label class="upload-btn" for="excel-upload">
-      ⭱ <span class="hide-sm">Carregar planilha</span> (.xlsx)
-      <input type="file" id="excel-upload" accept=".xlsx,.xls" hidden>
-    </label>
   </div>
 </header>
 <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
@@ -65,7 +62,6 @@
     <option value="">Adversário: Todos</option>
   </select>
   <button id="f-clear" class="fclear-btn" type="button">Limpar filtros</button>
-  <button id="f-clear-storage" class="fclear-btn danger" type="button">Restaurar base original</button>
   <div class="filter-summary" id="filter-summary"></div>
 </div>
 
@@ -75,7 +71,7 @@
   <section class="hero">
     <div class="hero-top">
       <div class="hero-title">
-        <div class="hero-crest"><img src="SE_Palmeiras_2025_crest.png" alt=""></div>
+        <div class="hero-crest"><img src="escudo.png" alt="" width="72" height="84"></div>
         <div>
           <h1>PALMEIRAS</h1>
           <div class="tagline" id="hero-tagline">Painel de performance · Temporada 2026</div>
@@ -84,6 +80,7 @@
       <div class="hero-side">
         <div class="season-select">TEMPORADA 2026</div>
         <div class="hero-form" id="hero-form" title="Últimos 5 jogos do recorte"></div>
+        <div class="hero-updated" id="hero-updated"></div>
       </div>
     </div>
 
@@ -136,15 +133,18 @@
       <div>
         <div class="section-eyebrow">04 · Linha do tempo</div>
         <h2 class="section-title">Evolução da temporada</h2>
-        <p class="section-desc">Pontos acumulados, saldo de gols e aproveitamento móvel de 5 jogos. Passe o mouse sobre o gráfico para ver cada partida.</p>
+        <p class="section-desc">Pontos e saldo acumulados jogo a jogo e, embaixo, o aproveitamento dos últimos 5 jogos. Passe o mouse (ou toque, ou foque e use as setas ← →) para ver cada partida.</p>
       </div>
     </div>
     <div class="card chart-card" style="margin-bottom:16px;">
-      <div class="chart-host" id="evo-chart"></div>
+      <div class="chart-host" id="evo-chart" aria-label="Gráfico de evolução — use as setas para percorrer os jogos"></div>
+      <div class="sr-only" id="evo-live" aria-live="polite"></div>
       <div class="chart-legend">
         <div class="li"><span class="sw" style="background:var(--green-400)"></span> Pontos acumulados</div>
         <div class="li"><span class="sw" style="background:var(--gold-soft)"></span> Saldo de gols acumulado</div>
-        <div class="li"><span class="sw dashed"></span> Aproveitamento móvel (5 jogos) %</div>
+        <div class="li"><span class="sw" style="background:var(--blue)"></span> Aproveitamento móvel (5 jogos)</div>
+        <div class="li"><span class="sw dashed"></span> Média do recorte</div>
+        <div class="li"><span class="pt V"></span><span class="pt E"></span><span class="pt D"></span> Resultado do jogo (V · E · D)</div>
       </div>
     </div>
 
@@ -162,10 +162,11 @@
           </div>
         </div>
         <div id="momento-badges" class="badge-row"></div>
+        <div id="last-games" class="last-games"></div>
       </div>
       <div class="card">
         <div class="section-eyebrow" style="margin-bottom:10px;">Sequências do recorte</div>
-        <div class="grid grid-2" id="seq-grid" style="gap:10px;"></div>
+        <div class="grid grid-2 keep-2" id="seq-grid" style="gap:10px;"></div>
       </div>
     </div>
   </section>
@@ -176,9 +177,9 @@
       <div>
         <div class="section-eyebrow">05 · Elenco</div>
         <h2 class="section-title">Artilharia &amp; assistências</h2>
-        <p class="section-desc">Participações em gols na temporada.</p>
+        <p class="section-desc">Participações em gols. Gols contra a favor entram no total, mas não na lista.</p>
       </div>
-      <div class="section-note">Números de jogadores vêm das abas <b>Artilharia</b> / <b>Assistencias</b> da planilha e são da temporada inteira — não respondem aos filtros de partida.</div>
+      <div class="section-note">A <b>artilharia</b> é somada a partir dos autores de cada partida e responde aos filtros. <b>Assistências</b> não têm registro por jogo: são sempre da temporada inteira.</div>
     </div>
     <div class="grid grid-2" id="elenco-grid"></div>
   </section>
@@ -212,6 +213,7 @@
       <div class="donut-wrap">
         <div id="donut-chart"></div>
         <div class="donut-legend" id="donut-legend"></div>
+        <div class="res-breakdown" id="res-breakdown"></div>
       </div>
     </div>
   </section>
@@ -228,7 +230,7 @@
     </div>
     <div class="games-toolbar">
       <div class="rank-tabs" id="games-scope" role="tablist" aria-label="Quantidade de jogos"></div>
-      <input type="search" id="games-search" class="fsearch" placeholder="Buscar adversário ou competição…" aria-label="Buscar partidas">
+      <input type="search" id="games-search" class="fsearch" placeholder="Buscar time, jogador ou estádio…" aria-label="Buscar partidas por adversário, competição, estádio ou autor de gol">
     </div>
     <div class="card subtle-scroll">
       <table class="games-table" id="games-table"></table>
@@ -237,7 +239,7 @@
 
   <footer>
     <p id="footer-note">PALMEIRAS · BI SPORTS ANALYTICS</p>
-    <p class="muted">Todos os números são calculados a partir da base carregada — nada é estimado ou inventado.</p>
+    <p class="muted">Todos os números são calculados a partir da base de partidas — nada é estimado ou inventado.</p>
   </footer>
 </main>
 
